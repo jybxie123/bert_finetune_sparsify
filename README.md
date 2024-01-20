@@ -1,4 +1,4 @@
-# Readme of Bert Finetune Backward Sparsify
+# Bert Finetune Backward Sparsify
 *This is our source code of Bert finetune with backward sparsify in column form way.*
 ## Introduction
 Our code is for sparsifying the gradient of backpropagation. To achieve this goal and get a better performance than the former works, we find a new method of sparsify based in column selection and evaluation of feature of input.
