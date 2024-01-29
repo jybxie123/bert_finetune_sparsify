@@ -6,7 +6,7 @@ import os
 import sys
 
 # add transformer into path
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune/transformers/src')
+sys.path.insert(0, '/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/transformers/src')
 import transformers
 print(transformers.__file__)
 
@@ -48,10 +48,9 @@ from utils.fsdp_utils import fsdp_auto_wrap_policy
 
 
 
-load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune/checkpoint/train_basic_yelp_gelu_100000_sparsity_0" # gelu
-# ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune/checkpoint/train_basic_yelp_relu_100000_sparsity_0"
+load_ckpt_path = "/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/checkpoint/train_basic_yelp_gelu_100000_sparsity_0" # gelu
 
-log_path = "/disk3/Haonan/yanbo_random/bert_finetune/logs/train_basic_yelp"
+log_path = "/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/logs/train_basic_yelp"
 def main(**kwargs):
     # config and fsdp_config
     train_config, fsdp_config = TRAIN_CONFIG(), FSDP_CONFIG()
@@ -74,8 +73,8 @@ def main(**kwargs):
         return tokenizer(examples["text"], padding="max_length", truncation=True)
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     # 这个样例数据集不大，300M
-    small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(100000))
-    small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(10000))
+    small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(100))
+    small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(100))
     train_data = sds.SelfDefDataset(small_train_dataset)
     eval_data = sds.SelfDefDataset(small_eval_dataset)
     train_dataloader = torch.utils.data.DataLoader(
