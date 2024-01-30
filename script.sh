@@ -836,6 +836,8 @@ BertSelfOutput
 
 ok了家人们，把norm初步实现了一下啊，看看对不对。
 
+初步实现了，但是在bizon服务器上跑的效果确实有点烂，先用非稀疏的把基线给重跑一下。
+然后检查哪个组件添加之后性能掉的最厉害，说明有问题。
+CUDA_VISIBLE_DEVICES=7 torchrun --nnodes 1 --nproc_per_node 1 /disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/train.py
 
-
-
+测试完成了。现在已知修改的几个稀疏组件都不会严重降低性能，是正确的。

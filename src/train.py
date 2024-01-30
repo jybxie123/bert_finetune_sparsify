@@ -1,20 +1,17 @@
 # training dataset
 from datasets import load_dataset, load_metric, list_metrics
-
-
 import os
 import sys
 
 # add transformer into path
-sys.path.insert(0, '/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/transformers/src')
-import transformers
-print(transformers.__file__)
+# sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsifyn/transformers/src')
+# import transformers
+# print(transformers.__file__)
 
-from transformers import  AutoConfig
+from transformers import AutoConfig
 from transformers.models.bert.configuration_bert import BertConfig 
 from transformers import AutoTokenizer
-from transformers import AutoModelForSequenceClassification
-from transformers import TrainingArguments, Trainer
+from models.bert.modeling_bert import BertForSequenceClassification, CustomBertConfig
 import evaluate
 import numpy as np
 import torch
@@ -47,10 +44,6 @@ from utils.config_utils import update_config
 from utils.fsdp_utils import fsdp_auto_wrap_policy
 
 
-
-load_ckpt_path = "/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/checkpoint/train_basic_yelp_gelu_100000_sparsity_0" # gelu
-
-log_path = "/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/logs/train_basic_yelp"
 def main(**kwargs):
     # config and fsdp_config
     train_config, fsdp_config = TRAIN_CONFIG(), FSDP_CONFIG()
@@ -73,8 +66,8 @@ def main(**kwargs):
         return tokenizer(examples["text"], padding="max_length", truncation=True)
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
     # 这个样例数据集不大，300M
-    small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(100))
-    small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(100))
+    small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(100000))
+    small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(10000))
     train_data = sds.SelfDefDataset(small_train_dataset)
     eval_data = sds.SelfDefDataset(small_eval_dataset)
     train_dataloader = torch.utils.data.DataLoader(
@@ -98,19 +91,23 @@ def main(**kwargs):
     
     # torch.multiprocessing.set_sharing_strategy('file_system')
     if train_config.model_type == 'finetuned':
-        config = AutoConfig.from_pretrained(f"{load_ckpt_path}/bert-base-cased")
-        print('act_layer : ',config.hidden_act)
-        model = AutoModelForSequenceClassification.from_config(config=config)
-        ckpt = torch.load(f"{load_ckpt_path}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
+        config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/bert-base-cased")
+        custom_config = CustomBertConfig(config, mode = train_config.mode)
+        model = BertForSequenceClassification.from_pretrained(
+            f"{train_config.load_ckpt_path}/bert-base-cased",
+            num_labels=5,
+            config=custom_config)
+        ckpt = torch.load(f"{train_config.load_ckpt_path}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
     else:
+        # AutoConfig.from_pretrained or bert config
+        config = BertConfig.from_pretrained(train_config.model_name, hidden_act=train_config.hidden_act)
+        custom_config = CustomBertConfig(config, mode = train_config.mode)
         # use original model
-        model = AutoModelForSequenceClassification.from_pretrained(
+        model = BertForSequenceClassification.from_pretrained(
             train_config.model_name,
             num_labels=5,
-            # load_in_8bit=True if train_config.quantization else None,
-            # device_map="auto" if train_config.quantization else None,
-            # use_cache=use_cache,
+            config=custom_config,
         )
     if train_config.enable_fsdp:
         if not train_config.use_peft and train_config.freeze_layers:

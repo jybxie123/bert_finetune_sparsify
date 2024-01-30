@@ -8,9 +8,10 @@ from dataclasses import dataclass
 class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
     model_name: str="bert-base-cased"
+    mode = 'randAD'
     run_validation: bool=True
-    batch_size_training: int=4
-    val_batch_size: int=4
+    batch_size_training: int=64
+    val_batch_size: int=64
     batching_strategy: str="packing" #alternative: padding
     gradient_accumulation_steps: int=1
     gradient_clipping: bool = False
@@ -23,13 +24,15 @@ class train_config:
     seed: int=42
     mixed_precision: bool=True
     dataset = "yelp_review_full"
-    output_dir: str = "/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/metrics"
+    output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"
     freeze_layers: bool = False
     num_freeze_layers: int = 1
     quantization: bool = False
     one_gpu: bool = False
     save_model: bool = True
-    ckpt_path: str="/home/bizon/yanbo_random/bert_finetune_sparsify_new_version/checkpoint/train_yelp_gelu_100_sparsify_0" # will be used if using FSDP
+    ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint/train_yelp_gelu_100000_sparsify_0" # will be used if using FSDP
+    load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint/train_basic_yelp_gelu_100000_sparsity_0" # gelu
+    log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs/train_basic_yelp"
     save_optimizer: bool=False 
     save_metrics: bool = False # saves training metrics to a json file for later plotting
 
