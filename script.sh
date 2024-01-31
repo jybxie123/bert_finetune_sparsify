@@ -841,3 +841,7 @@ ok了家人们，把norm初步实现了一下啊，看看对不对。
 CUDA_VISIBLE_DEVICES=7 torchrun --nnodes 1 --nproc_per_node 1 /disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/train.py
 
 测试完成了。现在已知修改的几个稀疏组件都不会严重降低性能，是正确的。
+代码重构：
+1.去掉多gpu功能，给训练过程加速
+2.去掉transformers功能，彻底给代码减重。
+

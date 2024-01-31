@@ -30,6 +30,8 @@ def get_selected_indices(input, indices):
 def get_batch_score(input1, input2 = None,  keep_frac = 0.5, select_method='norm'):
     if input2 is not None:
         if input1.shape[-1] != input2.shape[-1]:
+            print('input1 shape : ',input1.shape)
+            print('input2 shape : ',input2.shape)
             raise ValueError('input1 and input2 shape is not supported')
         if len(input2.shape) == 1:
             raise ValueError('input2 shape is not supported')

@@ -4,14 +4,16 @@ import os
 import sys
 
 # add transformer into path
-# sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsifyn/transformers/src')
-# import transformers
-# print(transformers.__file__)
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/transformers/src')
+import transformers
+print(transformers.__file__)
 
 from transformers import AutoConfig
-from transformers.models.bert.configuration_bert import BertConfig 
+# from transformers.models.bert.configuration_bert import BertConfig 
 from transformers import AutoTokenizer
-from models.bert.modeling_bert import BertForSequenceClassification, CustomBertConfig
+from models.bert.modeling_bert import BertForSequenceClassification
+# from transformers import BertForSequenceClassification
+# from transformers import AutoModelForSequenceClassification
 import evaluate
 import numpy as np
 import torch
@@ -92,23 +94,20 @@ def main(**kwargs):
     # torch.multiprocessing.set_sharing_strategy('file_system')
     if train_config.model_type == 'finetuned':
         config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/bert-base-cased")
-        custom_config = CustomBertConfig(config, mode = train_config.mode)
-        model = BertForSequenceClassification.from_pretrained(
+        model = BertForSequenceClassification.from_pretrained( # BertForSequenceClassification
             f"{train_config.load_ckpt_path}/bert-base-cased",
             num_labels=5,
-            config=custom_config)
+            config=config)
         ckpt = torch.load(f"{train_config.load_ckpt_path}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
     else:
         # AutoConfig.from_pretrained or bert config
-        config = BertConfig.from_pretrained(train_config.model_name, hidden_act=train_config.hidden_act)
-        custom_config = CustomBertConfig(config, mode = train_config.mode)
-        # use original model
-        model = BertForSequenceClassification.from_pretrained(
-            train_config.model_name,
-            num_labels=5,
-            config=custom_config,
-        )
+        # # use original model
+        # model = BertForSequenceClassification.from_pretrained(
+        #     train_config.model_name,
+        #     config=custom_config,
+        # )
+        model = BertForSequenceClassification.from_pretrained(train_config.model_name, num_labels=5)
     if train_config.enable_fsdp:
         if not train_config.use_peft and train_config.freeze_layers:
             freeze_transformer_layers(train_config.num_freeze_layers)

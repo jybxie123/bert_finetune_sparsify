@@ -4,8 +4,7 @@ import logging
 
 # from mesa import custom_quant
 # from mesa import native
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/transformers/src/transformers/models/bert')
-from rand_layers import sparsify, unsparsify
+from . import rand_layers as rl
 from pdb import set_trace
 import torch
 import torch.nn as nn
@@ -43,7 +42,7 @@ def cal_zero_ratio(layer_output, layer_idx, iteration, act_type):
         file.write(f"iteration:{iteration};layer{layer_idx}:{ratio}\n")
 
 
-import rand_layers as rl
+
 # 单个hidden state
 class sparseMatMul(torch.autograd.Function):
     @staticmethod
@@ -68,8 +67,7 @@ class sparseMatMul(torch.autograd.Function):
             bias_grad = grad_output.sum(0)
         return input_grad, weight_grad, bias_grad, None, None, None, None
 
-
-class OurMatMul(torch.matmul):
+class OurMatMul(nn.Module):
     def __init__(self, args=None, keep_frac=0.5, linear_idx = None, act_type = None ):
         super(OurMatMul, self).__init__()
         self.keep_frac = keep_frac
@@ -201,14 +199,17 @@ class OurSoftmaxMatMul(nn.Module):
 
 class softmax_matmul(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input1, input2, dim):
+    def forward(ctx, input1, to_matmul_input2, dim):
         input1_sm = softmax(input1, dim)
+        input2 = to_matmul_input2.transpose(-2, -1)
         ctx.dim = dim
-        gather_index = rl.get_batch_score(input1_sm, input2, 1.0)
+        print('input1 shape : ', input1.shape)
+        print('input2 shape : ', input2.shape)
+        gather_index = rl.get_batch_score(input1, input2, 0.5)
         sparse_x_1 = rl.get_sparse_input(input1_sm, gather_index)
         sparse_x_2 = rl.get_sparse_input(input2, gather_index)
         ctx.save_for_backward(sparse_x_1.to_sparse(), sparse_x_2.to_sparse())
-        output = input1_sm.matmul(input2)
+        output = input1_sm.matmul(to_matmul_input2)
         return output
 
     @staticmethod
@@ -222,7 +223,7 @@ class softmax_matmul(torch.autograd.Function):
         input_1_sm = sparse_x_1.to_dense()
         input_2 = sparse_x_2.to_dense()
         if ctx.needs_input_grad[0]:
-            grad_input_1_sm = grad_output.matmul(input_2.transpose(-2, -1).to(dtype=grad_output.dtype))
+            grad_input_1_sm = grad_output.matmul(input_2.to(dtype=grad_output.dtype))
             grad_input_1 = softmax_grad(grad_input_1_sm, input_1_sm)
         if ctx.needs_input_grad[1]:
             grad_input_2 = input_1_sm.transpose(-2, -1).to(dtype=grad_output.dtype).matmul(grad_output)
@@ -252,7 +253,7 @@ def softmax_grad(grad_output,out):
 class linear(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, weight, bias=None, mask=None, quantize=True, half=False, clip_val=None, level=256, iteration=None, ema_decay=None, quant_groups=None, shift=None):
-        shape_x, mask_x, sparse_x = sparsify(x, mask, with_batch_size=False)
+        shape_x, mask_x, sparse_x = rl.sparsify(x, mask, with_batch_size=False)
         if half and (not quantize):
             sparse_x = sparse_x.half()
         # if quantize:
@@ -276,7 +277,7 @@ class linear(torch.autograd.Function):
         #     sparse_x = custom_quant.Quant.restore(ctx)
 
         sparse_x = sparse_x.float()
-        input = unsparsify(shape_x, mask_x, sparse_x, with_batch_size=False)
+        input = rl.unsparsify(shape_x, mask_x, sparse_x, with_batch_size=False)
 
         if ctx.needs_input_grad[0]:
             grad_input = grad_output.matmul(weight.to(dtype=grad_output.dtype))

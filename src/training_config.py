@@ -7,8 +7,9 @@ from dataclasses import dataclass
 @dataclass
 class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
+    hidden_act: str = 'gelu'
     model_name: str="bert-base-cased"
-    mode = 'randAD'
+    mode = 'normal'
     run_validation: bool=True
     batch_size_training: int=64
     val_batch_size: int=64
