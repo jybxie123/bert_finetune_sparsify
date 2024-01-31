@@ -24,7 +24,8 @@ class train_config:
     gamma: float= 0.85
     seed: int=42
     mixed_precision: bool=True
-    dataset = "yelp_review_full"
+    dataset_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
+    dataset_name = "yelp_review_full"
     output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"
     freeze_layers: bool = False
     num_freeze_layers: int = 1

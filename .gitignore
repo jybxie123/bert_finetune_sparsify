@@ -1,4 +1,7 @@
 checkpoint/
 logs/
 *.txt
+__pycache__
+*.pyc
+*.pt
 
