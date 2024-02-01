@@ -845,3 +845,26 @@ CUDA_VISIBLE_DEVICES=7 torchrun --nnodes 1 --nproc_per_node 1 /disk3/Haonan/yanb
 1.去掉多gpu功能，给训练过程加速
 2.去掉transformers功能，彻底给代码减重。
 
+现在减重也已经完成了。
+
+准备和randAD或者backRazor比较一下。
+
+主要比较：
+1. flops 计算量
+2. macs 访存量
+3. memory 内存占用
+4. time 训练时间
+CUDA_VISIBLE_DEVICES=7 python src/train.py
+初步使用对象化有问题:内存占用太高,两个稀疏占了58635多.
+原本的也不遑多让: 63350MiB
+三个linear:60937MiB
+
+总结的一些经验:
+forward需要越快越好,千万不能用一些复杂逻辑.
+做sparse的时候,甚至可以考虑
+
+require grad函数会复制值,产生mem
+尽可能就地操作减少内存.
+
+
+

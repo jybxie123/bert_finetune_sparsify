@@ -8,9 +8,10 @@ def get_sparse_input(input, gather_index):
     # return sparse_input
     return gathered_input # 这里假设后续用to sparse来替代
 
-def get_selected_indices(input, indices):
+def get_selected_indices(ori_input, indices):
     # print('input shape : ', input.shape)
     # print('indices shape : ', indices.shape)
+    input = ori_input.clone()
     if len(input.shape) == 1:
         input[indices] = 0
     elif len(input.shape) == 2:
@@ -55,7 +56,7 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, select_method='norm
         # gather_index = torch.argsort(score, descending=True)[kept_feature_size:]
         # print('gather_index shape : ',gather_index.shape)
         return gather_index
-    elif select_method == 'rand':
+    elif select_method == 'rand': # randAD
         full_indices = torch.randperm(input1.size()[-1]).to(input1.device)
         gather_index = full_indices[kept_feature_size:]
         # print('gather_index shape : ',gather_index.shape)
@@ -75,18 +76,18 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, select_method='norm
 #     # mask = torch.ones_like(activation).to(torch.bool)
 #     return mask
 
-# dense tensor to sparse tensor
-def denseToSparse(x):
-    indices = torch.nonzero(x, as_tuple=True)
-    values = x[indices]
-    stacked = torch.stack(indices)
-    sparse_x = torch.sparse_coo_tensor(stacked, values, x.size())
-    return sparse_x
+# # dense tensor to sparse tensor
+# def denseToSparse(x):
+#     indices = torch.nonzero(x, as_tuple=True)
+#     values = x[indices]
+#     stacked = torch.stack(indices)
+#     sparse_x = torch.sparse_coo_tensor(stacked, values, x.size())
+#     return sparse_x
 
-# sparse tensor to dense tensor
-def sparseToDense(sparse_x):
-    dense_tensor = sparse_x.to_dense()
-    return dense_tensor
+# # sparse tensor to dense tensor
+# def sparseToDense(sparse_x):
+#     dense_tensor = sparse_x.to_dense()
+#     return dense_tensor
 
 # 原来的稀疏方法，还不够简单
 # # input should be viewed into [xxx, feature_len], then we give the output with masked zero.

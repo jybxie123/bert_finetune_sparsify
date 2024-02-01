@@ -60,7 +60,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
     val_accu = []
 
     if train_config.save_metrics:
-        metrics_filename = f"{train_config.output_dir}/metrics_data-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+        metrics_filename = f"{train_config.output_dir}/{train_config.expr_name}/metrics_data-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
         train_step_perplexity = []
         train_step_loss = []
         val_step_loss = []
@@ -73,6 +73,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
     best_val_accu = 0.0
     # add metrics method
     metrics = evaluate.load("accuracy")
+    torch.autograd.set_detect_anomaly(True)
     for epoch in range(train_config.num_epochs):
         # here I only update the default branch, with sparse adam
         epoch_start_time = time.perf_counter()
@@ -103,7 +104,6 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
                     optimizer.step()
                     optimizer.zero_grad()
                     pbar.update(1)
-
                 pbar.set_description(f"Training Epoch: {epoch+1}/{train_config.num_epochs}, step {step}/{len(train_dataloader)} completed (loss: {loss.detach().float()})")
                 if train_config.save_metrics:
                     save_to_json(metrics_filename, train_step_loss, train_loss, train_step_perplexity, train_prep, val_step_loss, val_loss, val_step_perplexity, val_prep)
@@ -117,11 +117,15 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
         train_prep.append(float(train_perplexity))
         train_loss.append(float(train_epoch_loss))
         train_accu.append(metrics.compute()['accuracy'])
-        print(f"Max CUDA memory allocated was {memtrace.peak} GB")
-        print(f"Max CUDA memory reserved was {memtrace.max_reserved} GB")
-        print(f"Peak active CUDA memory was {memtrace.peak_active_gb} GB")
-        print(f"Cuda Malloc retires : {memtrace.cuda_malloc_retires}")
-        print(f"CPU Total Peak Memory consumed during the train (max): {memtrace.cpu_peaked + memtrace.cpu_begin} GB")
+        with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
+            f.write(f"===================Epoch {epoch+1}: train_accu={metrics.compute()['accuracy']}=================\n")
+            f.write(f"Time taken for epoch {epoch+1} is {epoch_end_time}\n")
+            f.write(f"Max CUDA memory allocated was {memtrace.peak} GB\n")
+            f.write(f"Max CUDA memory reserved was {memtrace.max_reserved} GB\n")
+            f.write(f"Peak active CUDA memory was {memtrace.peak_active_gb} GB\n")
+            f.write(f"Cuda Malloc retires : {memtrace.cuda_malloc_retires}\n")
+            f.write(f"CPU Total Peak Memory consumed during the train (max): {memtrace.cpu_peaked + memtrace.cpu_begin} GB\n")
+            f.write(f'==============================================epoch end=============================================\n')
 
         # Update the learning rate as needed
         lr_scheduler.step()
@@ -165,22 +169,31 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
     avg_checkpoint_time = sum(checkpoint_times)/ len(checkpoint_times) if len(checkpoint_times) > 0 else 0
     avg_train_prep = sum(train_prep)/len(train_prep)
     avg_train_loss = sum(train_loss)/len(train_loss)
+    avg_train_accu = sum(train_accu)/len(train_accu)
     if train_config.run_validation:
         avg_eval_prep = sum(val_prep)/len(val_prep)
         avg_eval_loss = sum(val_loss)/len(val_loss)
+        avg_eval_accu = sum(val_accu)/len(val_accu)
 
     results['avg_train_prep'] = avg_train_prep
     results['avg_train_loss'] = avg_train_loss
     if train_config.run_validation:
         results['avg_eval_prep'] = avg_eval_prep
         results['avg_eval_loss'] = avg_eval_loss
+        results['avg_eval_accu'] = avg_eval_accu
+        results['eval_accu'] = val_accu
     results["avg_epoch_time"] = avg_epoch_time
     results["avg_checkpoint_time"] = avg_checkpoint_time
     if train_config.save_metrics:
         results["metrics_filename"] = metrics_filename
+    results['avg_train_accu'] = avg_train_accu
     results['train_accu'] = train_accu
-    results['val_accu'] = val_accu
-
+    
+    
+    with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
+        f.write(f"==========================================\n")
+        f.write(f"results are : \n{results}\n")
+        f.write(f"=====================training stage=====================\n")
     return results
 
 def evaluation(model,train_config, eval_dataloader, local_rank, tokenizer):

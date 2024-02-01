@@ -16,6 +16,7 @@ import torch.optim as optim
 import fire
 from utils.train_utils import train
 from utils.config_utils import update_config
+
 def main(**kwargs):
     # config and fsdp_config
     train_config = TRAIN_CONFIG()
@@ -44,12 +45,12 @@ def main(**kwargs):
     
     # torch.multiprocessing.set_sharing_strategy('file_system')
     if train_config.model_type == 'finetuned':
-        config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/bert-base-cased")
+        config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased")
         model = BertForSequenceClassification.from_pretrained( # BertForSequenceClassification
-            f"{train_config.load_ckpt_path}/bert-base-cased",
+            f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased",
             num_labels=5,
             config=config)
-        ckpt = torch.load(f"{train_config.load_ckpt_path}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
+        ckpt = torch.load(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
     else:
         # AutoConfig.from_pretrained or bert config

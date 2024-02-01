@@ -14,8 +14,8 @@ def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 # 这个样例数据集不大，300M
-small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(100000))
-small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(10000))
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
 train_data = SelfDefDataset(small_train_dataset)
 eval_data = SelfDefDataset(small_eval_dataset)
 print(3)

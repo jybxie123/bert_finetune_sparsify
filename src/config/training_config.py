@@ -11,8 +11,8 @@ class train_config:
     model_name: str="bert-base-cased"
     mode = 'normal'
     run_validation: bool=True
-    batch_size_training: int=64
-    val_batch_size: int=64
+    batch_size_training: int=32
+    val_batch_size: int=32
     batching_strategy: str="packing" #alternative: padding
     gradient_accumulation_steps: int=1
     gradient_clipping: bool = False
@@ -24,17 +24,18 @@ class train_config:
     gamma: float= 0.85
     seed: int=42
     mixed_precision: bool=True
-    dataset_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
     dataset_name = "yelp_review_full"
-    output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"
     freeze_layers: bool = False
     num_freeze_layers: int = 1
     quantization: bool = False
     one_gpu: bool = False
     save_model: bool = True
-    ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint/train_yelp_gelu_100000_sparsify_0" # will be used if using FSDP
-    load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint/train_basic_yelp_gelu_100000_sparsity_0" # gelu
-    log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs/train_basic_yelp"
+    dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
+    expr_name: str = 'bert_yelp_gelu_100000_all_sparsity_1'
+    ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
+    load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
+    output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"
+    log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs"
     save_optimizer: bool=False 
     save_metrics: bool = False # saves training metrics to a json file for later plotting
 
