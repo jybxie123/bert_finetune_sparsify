@@ -19,10 +19,11 @@ If it doesn't work, give me an issue.
 Before you run your code, edit your training_config to make sure it runs as you think.
 A good example:
 ```
-# load your dataset into your dataset folder
+## load your dataset into your dataset folder
 python src/self_def_dataset/load_dataset.py
-# finetune
-nvidia-smi # find your available gpu index
+## finetune
+# find your available gpu index
+nvidia-smi
 CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX, SPLIT BY ','> python  <YOUR REPO PATH>/src/train.py
 ```
 If you need to edit your config, please check the file : <YOUR REPO PATH>/src/config/training_config.py 
@@ -32,9 +33,9 @@ If you need to edit your config, please check the file : <YOUR REPO PATH>/src/co
 Testing is quite simple, just go to the main folder, and run the following script:
 ```
 cd src
-# if you need to specialise your gpu, use this method: CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX>
+## if you need to specialise your gpu, use this method: CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX>
 python test.py
-# test.py is outdated, repairing
+## test.py is outdated, repairing
 ```
 
 
