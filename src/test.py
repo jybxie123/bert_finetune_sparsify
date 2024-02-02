@@ -15,7 +15,7 @@ from transformers import AutoConfig
 import numpy as np
 import evaluate
 import torch
-from training_config import train_config as TRAIN_CONFIG
+from config.training_config import train_config as TRAIN_CONFIG
 # ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune/checkpoint/train_basic_yelp"
 ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune/checkpoint/train_basic_yelp_gelu_100000_sparsify_1"
 # config

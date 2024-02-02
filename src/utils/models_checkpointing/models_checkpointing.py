@@ -126,55 +126,36 @@ def save_model_and_optimizer_sharded(model, rank, cfg,optim=None):
 def save_model_checkpoint(
     model,
     optimizer,
-    rank,
     cfg,
     epoch=1,
 ):
-    """saving model via rank0 cpu streaming and full_state_dict"""
-
-    with FSDP.state_dict_type(
-        model, StateDictType.FULL_STATE_DICT, fullstate_save_policy
-    ):
-        # 保存模型和优化器状态
-        # 假设optimizer是你的优化器实例
-        checkpoint = {
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            # 其他需要保存的信息...
-        }
-        print(f"saving process: rank {rank}  done w model state_dict\n")
-    # here we don't use multimodel checkpointing yet
-        if rank == 0:
-            folder_name = (
-            cfg.ckpt_path
-            + "/"
-            + cfg.model_name
-            )
-            save_dir = Path.cwd() / folder_name
-            save_dir.mkdir(parents=True, exist_ok=True)
-            save_name = cfg.model_name + "-" + str(epoch) + ".pt"
-            save_full_path = str(save_dir) + "/" + save_name
-            config = model.config
-            config_dict = config.to_dict()
-            # 保存配置文件为JSON
-            json_path = str(save_dir) + '/config.json'
-            with open(json_path, 'w') as f:
-                json.dump(config_dict, f, indent=2)
-
-            # save model
-            # torch.save(cpu_state, save_full_path)
-            torch.save(checkpoint, save_full_path)
-            print(f"model checkpoint saved for epoch {epoch} at {save_full_path}\n")
+    folder_name = (
+    cfg.ckpt_path
+    + "/"
+    + cfg.expr_name
+    + "/"
+    + cfg.model_name
+    )
+    save_dir = Path.cwd() / folder_name
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_name = cfg.model_name + "-" + str(epoch) + ".pt"
+    save_full_path = str(save_dir) + "/" + save_name
+    config = model.config
+    config_dict = config.to_dict()
+    # 保存配置文件为JSON
+    json_path = str(save_dir) + '/config.json'
+    with open(json_path, 'w') as f:
+        json.dump(config_dict, f, indent=2)
+    checkpoint = {
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+    }
+    torch.save(checkpoint, save_full_path)
+    print(f"model checkpoint saved for epoch {epoch} at {save_full_path}\n")
       
 
 
-def load_model_checkpoint(model, rank, cfg):
-    """load local checkpoint to rank0 cpu
-    must be called * before * passing to FSDP"""
-
-    if rank != 0:
-        return
-
+def load_model_checkpoint(model, cfg):
     # where is the checkpoint at...
     full_state_dict_model_path = (
         Path.cwd() / cfg.checkpoint_folder / cfg.checkpoint_model_filename
@@ -186,12 +167,8 @@ def load_model_checkpoint(model, rank, cfg):
         )
         return
 
-
     model_checkpoint = torch.load(full_state_dict_model_path)
-    # integrate into loaded model
     model.load_state_dict(model_checkpoint)
-
-    
     print(f"model checkpoint loaded to rank0 cpu")
 
 
