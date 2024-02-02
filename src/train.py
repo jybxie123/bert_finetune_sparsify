@@ -48,18 +48,13 @@ def main(**kwargs):
         config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased")
         model = BertForSequenceClassification.from_pretrained( # BertForSequenceClassification
             f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased",
+            sparse_mode = train_config.mode,
             num_labels=5,
             config=config)
         ckpt = torch.load(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
     else:
-        # AutoConfig.from_pretrained or bert config
-        # # use original model
-        # model = BertForSequenceClassification.from_pretrained(
-        #     train_config.model_name,
-        #     config=custom_config,
-        # )
-        model = BertForSequenceClassification.from_pretrained(train_config.model_name, num_labels=5)
+        model = BertForSequenceClassification.from_pretrained(train_config.model_name, sparse_mode = train_config.mode, num_labels=5)
     model.to(device)
     metric = evaluate.load("accuracy")
     print(next(model.parameters()).device)
@@ -80,7 +75,6 @@ def main(**kwargs):
         model,
         train_dataloader,
         eval_dataloader,
-        None, # tokenizer is in the dataset
         optimizer,
         scheduler,
         train_config.gradient_accumulation_steps,

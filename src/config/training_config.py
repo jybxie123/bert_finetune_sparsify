@@ -9,7 +9,7 @@ class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
     hidden_act: str = 'gelu'
     model_name: str="bert-base-cased"
-    mode = 'normal'
+    mode = 'norm'
     run_validation: bool=True
     batch_size_training: int=32
     val_batch_size: int=32
@@ -31,7 +31,7 @@ class train_config:
     one_gpu: bool = False
     save_model: bool = True
     dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
-    expr_name: str = 'bert_yelp_gelu_100000_all_sparsity_1'
+    expr_name: str = 'bert_yelp_gelu_100000_all_sparsity_2'
     ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
     load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
     output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"

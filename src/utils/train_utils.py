@@ -33,7 +33,7 @@ def set_tokenizer_params(tokenizer: LlamaTokenizer):
 def byte2mb(x):
     return int(x / 2**20)
 
-def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_scheduler, gradient_accumulation_steps, train_config):
+def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, gradient_accumulation_steps, train_config):
     """
     Trains the model on the given dataloader
 
@@ -116,9 +116,10 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
         
         train_prep.append(float(train_perplexity))
         train_loss.append(float(train_epoch_loss))
-        train_accu.append(metrics.compute()['accuracy'])
+        accu = metrics.compute()['accuracy']
+        train_accu.append(accu)
         with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
-            f.write(f"===================Epoch {epoch+1}: train_accu={metrics.compute()['accuracy']}=================\n")
+            f.write(f"===================Epoch {epoch+1}: train_accu={accu}=================\n")
             f.write(f"Time taken for epoch {epoch+1} is {epoch_end_time}\n")
             f.write(f"Max CUDA memory allocated was {memtrace.peak} GB\n")
             f.write(f"Max CUDA memory reserved was {memtrace.max_reserved} GB\n")
@@ -131,7 +132,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
         lr_scheduler.step()
 
         if train_config.run_validation:
-            eval_ppl, eval_epoch_loss, temp_val_loss, temp_step_perplexity, epoch_val_accu = evaluation(model, train_config, eval_dataloader, local_rank, tokenizer)
+            eval_ppl, eval_epoch_loss, temp_val_loss, temp_step_perplexity, epoch_val_accu = evaluation(model, train_config, eval_dataloader)
             if train_config.save_metrics:
                 val_step_loss.extend(temp_val_loss)
                 val_step_perplexity.extend(temp_step_perplexity)
@@ -141,11 +142,11 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
             # if train_config.save_model and eval_epoch_loss < best_val_loss:
             if train_config.save_model and epoch_val_accu > best_val_accu:
                 save_model_checkpoint(
-                    model, optimizer, 0, train_config, epoch=epoch
+                    model, optimizer, train_config, epoch=epoch
                 )
                 if train_config.save_optimizer:
                     save_optimizer_checkpoint(
-                        model, optimizer, 0, train_config, epoch=epoch
+                        model, optimizer, train_config, epoch=epoch
                     )
                     print(" Saving the FSDP model checkpoints and optimizer using FULL_STATE_DICT")
                     print("=====================================================")
@@ -196,7 +197,7 @@ def train(model, train_dataloader,eval_dataloader, tokenizer, optimizer, lr_sche
         f.write(f"=====================training stage=====================\n")
     return results
 
-def evaluation(model,train_config, eval_dataloader, local_rank, tokenizer):
+def evaluation(model,train_config, eval_dataloader):
     """
     Evaluates the model on the given dataloader
 
