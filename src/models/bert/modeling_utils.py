@@ -2484,6 +2484,8 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         cls,
         pretrained_model_name_or_path: Optional[Union[str, os.PathLike]],
         sparse_mode,
+        is_sparse_softmax,
+        is_sparse_layer_norm,
         *model_args,
         config: Optional[Union[PretrainedConfig, str, os.PathLike]] = None,
         cache_dir: Optional[Union[str, os.PathLike]] = None,
@@ -3457,7 +3459,10 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         config = cls._autoset_attn_implementation(
             config, use_flash_attention_2=use_flash_attention_2, torch_dtype=torch_dtype, device_map=device_map
         )
+        ## custom configurations
         config.sparse_mode = sparse_mode
+        config.is_sparse_softmax = is_sparse_softmax
+        config.is_sparse_layer_norm = is_sparse_layer_norm
         with ContextManagers(init_contexts):
             # Let's make sure we don't run the init function of buffer modules
             model = cls(config, *model_args, **model_kwargs)

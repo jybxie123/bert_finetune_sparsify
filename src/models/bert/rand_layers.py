@@ -28,7 +28,7 @@ def get_selected_indices(ori_input, indices):
     return input
 
 # 对除了要筛选的维度以外的所有维度计算范数
-def get_batch_score(input1, input2 = None,  keep_frac = 0.5, select_method='norm'):
+def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm'):
     if input2 is not None:
         if input1.shape[-1] != input2.shape[-1]:
             print('input1 shape : ',input1.shape)
@@ -39,7 +39,7 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, select_method='norm
     kept_feature_size = int(input1.shape[-1] * keep_frac + 0.999)
     if len(input1.shape) == 1:
         raise ValueError('input1 shape is not supported')
-    if select_method == 'norm':
+    if sparse_mode == 'norm':
         # print('input shape, batch size, feature len, kept: ',input.shape, batch_size, feature_len, kept_feature_size)
         input_flatted1 = input1.reshape(-1, input1.shape[-1])
         temp_input1_norm = torch.norm(input_flatted1, dim=0) # 对列求范数 
@@ -56,7 +56,7 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, select_method='norm
         # gather_index = torch.argsort(score, descending=True)[kept_feature_size:]
         # print('gather_index shape : ',gather_index.shape)
         return gather_index
-    elif select_method == 'rand': # randAD
+    elif sparse_mode == 'rand': # randAD
         full_indices = torch.randperm(input1.size()[-1]).to(input1.device)
         gather_index = full_indices[kept_feature_size:]
         # print('gather_index shape : ',gather_index.shape)

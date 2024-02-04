@@ -243,10 +243,13 @@ class BertEmbeddings(nn.Module):
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
-        if config.sparse_mode == 'norm':
-            self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
-        elif config.sparse_mode == 'rand':
-            self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        if config.is_sparse_layer_norm:
+            if config.sparse_mode == 'norm':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'rand':
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            else:
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         else:
             self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -310,11 +313,12 @@ class BertSelfAttention(nn.Module):
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
                 f"heads ({config.num_attention_heads})"
             )
-
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
-        self.mode = config.sparse_mode
+        self.sparse_mode = config.sparse_mode
+        self.is_sparse_softmax = config.is_sparse_softmax
+        self.is_sparse_layer_norm = config.is_sparse_layer_norm
         # self.query = nn.Linear(config.hidden_size, self.all_head_size)
         # self.key = nn.Linear(config.hidden_size, self.all_head_size)
         # self.value = nn.Linear(config.hidden_size, self.all_head_size)
@@ -324,11 +328,7 @@ class BertSelfAttention(nn.Module):
             self.value = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
             self.mm1 = cl.OurMatMul(linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
             self.mm2 = cl.OurMatMul(linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            # self.key = OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
-            # self.value = OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act)
-            # self.mm1 = torch.matmul
-            # self.mm2 = torch.matmul
-            self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
+        
         # 1. 先复现backrazor,然后不行再移植过来.
         # elif config.sparse_mode == 'backRazor': # 暂时其他的norm、softmax都没实现backrazor的写法.
         #     self.query = cl.LinearSparse(config.hidden_size, self.all_head_size, masker=masker)
@@ -348,6 +348,8 @@ class BertSelfAttention(nn.Module):
             self.value = OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act)
             self.mm1 = torch.matmul
             self.mm2 = torch.matmul
+        if config.sparse_mode == 'norm' and config.is_sparse_softmax:
+            self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = position_embedding_type or getattr(
             config, "position_embedding_type", "absolute"
@@ -452,11 +454,15 @@ class BertSelfAttention(nn.Module):
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
-        if self.mode == 'norm':
-            context_layer = self.softmax_mm2(attention_scores,value_layer)
-        elif self.mode == 'rand': # randAD
-            attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-            context_layer = self.mm2(attention_probs, value_layer)
+        if self.is_sparse_softmax:
+            if self.sparse_mode == 'norm':
+                context_layer = self.softmax_mm2(attention_scores,value_layer)
+            elif self.sparse_mode == 'rand': # randAD
+                attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+                context_layer = self.mm2(attention_probs, value_layer)
+            else:
+                attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+                context_layer = self.mm2(attention_probs, value_layer)
         else:
             attention_probs = nn.functional.softmax(attention_scores, dim=-1)
             context_layer = self.mm2(attention_probs, value_layer)
@@ -504,11 +510,14 @@ class BertSelfOutput(nn.Module):
         else:
             self.dense = OurNoSparseLinear(config.hidden_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act)
         # tobesparse: our sparse norm
-        if config.sparse_mode == 'norm':
-            self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
-        elif config.sparse_mode == 'rand':
-            self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        else:
+        if config.is_sparse_layer_norm:
+            if config.sparse_mode == 'norm':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'rand':
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            else:
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        else: 
             self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.layer_idx = layer_idx
@@ -605,12 +614,19 @@ class BertOutput(nn.Module):
         super().__init__()
         if config.sparse_mode == 'norm':
             self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'rand':
+            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         else:
             self.dense = OurNoSparseLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act)
         # self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         # tobesparse: our sparse norm
-        if config.sparse_mode == 'norm':
-            self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+        if config.is_sparse_layer_norm:
+            if config.sparse_mode == 'norm':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'rand':
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            else:
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         else:
             self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -808,6 +824,8 @@ class BertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         if config.sparse_mode == 'norm':
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'rand':
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         else:
             self.dense = OurNoSparseLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act)
@@ -1237,7 +1255,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         )
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, sparse_mode,*model_args, **kwargs):
-        model = super().from_pretrained(pretrained_model_name_or_path, sparse_mode, *model_args, **kwargs)
+    def from_pretrained(cls, pretrained_model_name_or_path, sparse_mode, is_sparse_softmax = False, is_sparse_layer_norm = False,*model_args, **kwargs):
+        model = super().from_pretrained(pretrained_model_name_or_path, sparse_mode, is_sparse_softmax, is_sparse_layer_norm,*model_args, **kwargs)
         return model
 

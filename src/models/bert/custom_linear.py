@@ -57,7 +57,7 @@ class sparseMatMul(torch.autograd.Function):
         # _ = sparse.cal_sparse_index(input)
         # sparse_input = sparse.cal_sparse_input(input)
         # del sparse
-        sparse_index = rl.get_batch_score(input, keep_frac = keep_frac)
+        sparse_index = rl.get_batch_score(input, keep_frac = keep_frac, sparse_mode = sparse_mode)
         sparse_input = rl.get_sparse_input(input, sparse_index)
         ctx.save_for_backward(sparse_input.to_sparse(), weight, bias)
         with torch.autograd.grad_mode.no_grad():
@@ -139,15 +139,6 @@ class OurLayerNorm(nn.LayerNorm):
 class sparse_layer_norm(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, normalized_shape, weight, bias, eps=1e-5, keep_frac = 0.5, sparse_mode='norm'): # 这里normalized shape是一个int，就是hidden size
-        # SelectedClass = sp.class_dict[sparse_mode]
-        # if SelectedClass is None:
-        #     raise NotImplementedError(f"Unknown sparse_mode: {sparse_mode}")
-        # sparse = SelectedClass(keep_frac)
-        # sparse = sp.class_dict[sparse_mode]
-        # gather_index = sparse.cal_sparse_index(input) # 这里暂时范数计算是也考虑了w，因为w大的话自然影响也大
-        # sparse_input = sparse.cal_sparse_input(input)
-        # del sparse
-        
         if input.dtype != weight.data.dtype:
             input = input.to(dtype=weight.data.dtype)
         # here is a linear func
@@ -156,19 +147,14 @@ class sparse_layer_norm(torch.autograd.Function):
             sparse_input = rl.get_sparse_input(input, gather_index)
             ctx.layer_norm_parameters =  normalized_shape # 传递需要norm的维度
             ctx.eps = eps
-            ctx.save_for_backward(sparse_input.to_sparse(), weight, bias)
-            # input_mean = torch.mean(input, dim=-len(normalized_shape), keepdim=True)
-            # input_var = torch.var(input, dim=-len(normalized_shape), keepdim=True,unbiased=False)
-            # inputmu = input-input_mean
-            # inputivar = torch.sqrt(input_var+eps)
-            # out = weight*inputmu/inputivar + bias
+            ctx.save_for_backward(sparse_input.to_sparse(), weight)
             out = torch.layer_norm(input, normalized_shape, weight, bias, eps)
         return out
     # 这里试了超级久，最后发现backward实际的做法并不能用在这种情景下。我们的forward用的是另一个向量，因此input没办法计算。
     @staticmethod
     def backward(ctx, grad_output):
         # print('======================start of the backward========================')
-        sparse_input, weight, bias = ctx.saved_tensors
+        sparse_input, weight = ctx.saved_tensors
         ori_input = sparse_input.to_dense()
         ori_input_shape = ori_input.shape
         normalized_shape = ctx.layer_norm_parameters
@@ -177,10 +163,6 @@ class sparse_layer_norm(torch.autograd.Function):
         input = ori_input.reshape(-1, total_dim)
         grad_output = grad_output.reshape(-1, total_dim)
         _, D = input.shape
-        # 这可能会导致值复制
-        # input.requires_grad_(True)
-        # weight.requires_grad_(True)
-        # bias.requires_grad_(True)
         input_mean = torch.mean(input, dim=-len(normalized_shape), keepdim=True)
         input_var = torch.var(input, dim=-len(normalized_shape), keepdim=True, unbiased=False)
         inputmu = input-input_mean
@@ -264,3 +246,6 @@ def softmax_grad(grad_output,out):
     grad_input = out * (grad_output - (grad_output * out).sum(dim=-1, keepdim=True))
     return grad_input
 
+# attention matrix乘法，和kq的乘法没什么太大区别，用统一的一套技术做稀疏。有故事性。
+# story：我们拿出了一套逻辑，应用到了各个乘法的地方，得到了提升。
+# 如果不同的地方遵循的逻辑不同，可能需要单独解释，不如统一的方法来的好。

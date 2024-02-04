@@ -866,5 +866,46 @@ forward需要越快越好,千万不能用一些复杂逻辑.
 require grad函数会复制值,产生mem
 尽可能就地操作减少内存.
 
+数据集可以删减，但是可以多跑几个数据集，避免overfit
 
+if else 太多，重用的代码少，分开写清楚，不容易混乱。
+有必要的话拆成两个file
+
+
+时间、内存、精度 （星状图，战力图）
+1. performance 还正常，降低了几个点
+2. memory norm 有点高于rand， softmax和layer norm
+3. 速度需要比较一下正常的
+4. 
+
+可提升的方法：
+inplace tempo layernorm
+inplace tempo gelu
+
+1. 想办法根据三个指标，提升方法的效果
+2. 着重考虑inplace的方法，提升内存。
+3. 测一下baseline，backrazor/randAD/noSparse。
+4. 修改relu和gelu的就地操作。
+每个部分有个开关。这可以看到每个部分对实验的影响。看看是那里导致的内存爆炸。
+先no sparse，
+再加一部分layer的稀疏，看看它们带来的变化
+1）linear有提示，（除了kq那里都改了。）
+2）matmul k*q
+3）softmax matmul kq*v
+4) layer norm 
+5) activation
+先跑它们的方法，再贴近我们的方法。
+forward全量乘，column 和row记录下来，不用全求。
+
+performance测起来超过no sparse。
+
+编译错误：
+在conda里面装，用一个新的conda环境也行。其实自己的环境就可以了。
+conda install 一个c的版本。一般能解决
+或者有link错误，手动改clang。一个指向错误。
+python里面说c的问题，一般都是conda install版本。
+
+第一阶段：idea实现
+第二阶段：严谨实验，设计实验，对比性能
+第三阶段：paper
 

@@ -30,8 +30,10 @@ class train_config:
     quantization: bool = False
     one_gpu: bool = False
     save_model: bool = True
+    is_sparse_softmax = True
+    is_sparse_layer_norm = False
     dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
-    expr_name: str = 'bert_yelp_gelu_100000_all_sparsity_2'
+    expr_name: str = 'bert_yelp_gelu_20000_all_sparsity_1_norm_w_st_no_ln'
     ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
     load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
     output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"
