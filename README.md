@@ -5,7 +5,9 @@ Our code is for sparsifying the gradient of backpropagation. To achieve this goa
 ![image](https://github.com/jybxie123/bert_finetune_sparsify/assets/66007115/f1eceb16-632a-44bd-ad4b-334cb803a838)
 
 
-
+## Framework
+This repo uses self defined dataloader, trainer, and evaluation framework.
+We rewrite the transformers bert model into our type.
 
 ## Requirement
 Go to the main folder, find the requirements.txt and run the following:
@@ -17,15 +19,23 @@ If it doesn't work, give me an issue.
 Before you run your code, edit your training_config to make sure it runs as you think.
 A good example:
 ```
-CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX, SPLIT BY ','> torchrun --nnodes 1 --nproc_per_node 2 <YOUR REPO PATH>/src/train.py
+## load your dataset into your dataset folder
+python src/self_def_dataset/load_dataset.py
+## finetune
+# find your available gpu index
+nvidia-smi
+CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX, SPLIT BY ','> python  <YOUR REPO PATH>/src/train.py
 ```
+If you need to edit your config, please check the file : <YOUR REPO PATH>/src/config/training_config.py 
+
 
 ##  Testing
 Testing is quite simple, just go to the main folder, and run the following script:
 ```
 cd src
-# if you need to specialise your gpu, use this method: CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX>
+## if you need to specialise your gpu, use this method: CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX>
 python test.py
+## test.py is outdated, repairing
 ```
 
 
