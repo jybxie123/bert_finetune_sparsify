@@ -49,6 +49,7 @@ def main(**kwargs):
         model = BertForSequenceClassification.from_pretrained( # BertForSequenceClassification
             f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased",
             sparse_mode = train_config.mode,
+            keep_frac = train_config.keep_frac,
             is_sparse_softmax = train_config.is_sparse_softmax,
             is_sparse_layer_norm = train_config.is_sparse_layer_norm,
             num_labels=5,

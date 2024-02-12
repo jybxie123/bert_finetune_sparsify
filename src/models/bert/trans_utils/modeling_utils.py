@@ -2484,6 +2484,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         cls,
         pretrained_model_name_or_path: Optional[Union[str, os.PathLike]],
         sparse_mode,
+        keep_frac,
         is_sparse_softmax,
         is_sparse_layer_norm,
         *model_args,
@@ -3461,6 +3462,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         )
         ## custom configurations
         config.sparse_mode = sparse_mode
+        config.keep_frac = keep_frac
         config.is_sparse_softmax = is_sparse_softmax
         config.is_sparse_layer_norm = is_sparse_layer_norm
         with ContextManagers(init_contexts):

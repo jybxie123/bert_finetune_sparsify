@@ -4,7 +4,8 @@ import logging
 
 # from mesa import custom_quant
 # from mesa import native
-from . import rand_layers as rl
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/models/bert')
+import sparse_mode.rand_layers as rl
 from pdb import set_trace
 import torch
 import torch.nn as nn
@@ -44,19 +45,10 @@ class OurLinear(torch.nn.Linear):
 #         file.write(f"iteration:{iteration};layer{layer_idx}:{ratio}\n")
 
 
-
 # 单个hidden state
 class sparseMatMul(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, weight, bias, keep_frac, sparse_mode):
-        # SelectedClass = sp.class_dict[sparse_mode]
-        # if SelectedClass is None:
-        #     raise NotImplementedError(f"Unknown sparse_mode: {sparse_mode}")
-        # sparse = SelectedClass(keep_frac)
-        # sparse = sp.class_dict[sparse_mode]
-        # _ = sparse.cal_sparse_index(input)
-        # sparse_input = sparse.cal_sparse_input(input)
-        # del sparse
         sparse_index = rl.get_batch_score(input, keep_frac = keep_frac, sparse_mode = sparse_mode)
         sparse_input = rl.get_sparse_input(input, sparse_index)
         ctx.save_for_backward(sparse_input.to_sparse(), weight, bias)
@@ -98,7 +90,7 @@ class doubleSparseMatMul(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input1, to_matmul_input2, keep_frac, sparse_mode):
         input2 = to_matmul_input2.transpose(-2, -1)
-        gather_index = rl.get_batch_score(input1, input2, keep_frac)
+        gather_index = rl.get_batch_score(input1, input2, keep_frac, sparse_mode=sparse_mode)
         sparse_input1 = rl.get_sparse_input(input1, gather_index)
         sparse_input2 = rl.get_sparse_input(input2, gather_index)
         ctx.save_for_backward(sparse_input1.to_sparse(), sparse_input2.to_sparse())
@@ -143,59 +135,47 @@ class sparse_layer_norm(torch.autograd.Function):
             input = input.to(dtype=weight.data.dtype)
         # here is a linear func
         with torch.autograd.grad_mode.no_grad():
-            gather_index = rl.get_batch_score(input, keep_frac = keep_frac)
+            gather_index = rl.get_batch_score(input, keep_frac = keep_frac, sparse_mode=sparse_mode)
             sparse_input = rl.get_sparse_input(input, gather_index)
-            ctx.layer_norm_parameters =  normalized_shape # 传递需要norm的维度
-            ctx.eps = eps
+            input_mean = torch.mean(input, dim=-len(normalized_shape), keepdim=True)
+            input_var = torch.var(input, dim=-len(normalized_shape), keepdim=True, unbiased=False).expand_as(input_mean)
+            inputivar = torch.sqrt(input_var+eps)
+            ctx.layer_norm_parameters =  input_mean, inputivar, normalized_shape # 传递需要norm的维度
             ctx.save_for_backward(sparse_input.to_sparse(), weight)
             out = torch.layer_norm(input, normalized_shape, weight, bias, eps)
         return out
     # 这里试了超级久，最后发现backward实际的做法并不能用在这种情景下。我们的forward用的是另一个向量，因此input没办法计算。
     @staticmethod
     def backward(ctx, grad_output):
-        # print('======================start of the backward========================')
         sparse_input, weight = ctx.saved_tensors
         ori_input = sparse_input.to_dense()
-        ori_input_shape = ori_input.shape
-        normalized_shape = ctx.layer_norm_parameters
-        eps = ctx.eps
+        input_mean, inputivar, normalized_shape = ctx.layer_norm_parameters
         total_dim = torch.prod(torch.tensor(normalized_shape))
         input = ori_input.reshape(-1, total_dim)
         grad_output = grad_output.reshape(-1, total_dim)
         _, D = input.shape
-        input_mean = torch.mean(input, dim=-len(normalized_shape), keepdim=True)
-        input_var = torch.var(input, dim=-len(normalized_shape), keepdim=True, unbiased=False)
         inputmu = input-input_mean
-        input_var = input_var.expand_as(inputmu)
-        inputivar = torch.sqrt(input_var+eps)
-        dlxhat = grad_output*weight
-        dxhatx = 1/inputivar
-        dlvar = -0.5*torch.sum(weight*inputmu*inputivar**(-3)*grad_output,axis=1,keepdims=True)
-        dlvarx = 2*inputmu/D
-        dlmu = -1.*torch.sum(dlxhat/inputivar,dim=1,keepdims=True)-2.*torch.sum(dlvar*inputmu,dim=1,keepdims=True)/D
-        if ctx.needs_input_grad[0]:
-            grad_input = dlxhat*dxhatx + dlvar*dlvarx + dlmu/D
-            grad_input = grad_input.reshape(ori_input_shape)
-        if ctx.needs_input_grad[2]:
-            grad_weight = torch.sum(grad_output*inputmu/inputivar,dim=0,keepdims=True)
-        if ctx.needs_input_grad[3]:
-            grad_bias = torch.sum(grad_output,dim=0,keepdims=True)
+        output_mask = [ctx.needs_input_grad[0], ctx.needs_input_grad[2], ctx.needs_input_grad[3]]
+        grad_input, grad_weight, grad_bias = layernorm_backward(grad_output, (inputmu, inputivar, weight, D), output_mask)
         ctx.layer_norm_parameters = None
         return grad_input, None, grad_weight, grad_bias, None, None, None, None, None, None, None, None, None, None, None
 
-def layernorm_backward(dout, normalized_shape, cache):
+def layernorm_backward(dout, cache, output_mask):
     dx, dgamma, dbeta = None, None, None
-    (x, xmu, xivar, gamma) = cache
-    D = normalized_shape[-1]
-    dgamma = torch.sum(dout*xmu/xivar,dim=0,keepdims=True)
-    dbeta = torch.sum(dout,dim=0,keepdims=True)
+    (xmu, xivar, gamma, D) = cache
     dlxhat = dout*gamma
     dxhatx = 1/xivar
     dlvar = -0.5*torch.sum(gamma*xmu*xivar**(-3)*dout,axis=1,keepdims=True)
     dlvarx = 2*xmu/D
     dlmu = -1.*torch.sum(dlxhat/xivar,dim=1,keepdims=True)-2.*torch.sum(dlvar*xmu,dim=1,keepdims=True)/D
-    dx = dlxhat*dxhatx + dlvar*dlvarx + dlmu/D
+    if output_mask[0]:
+        dx = dlxhat*dxhatx + dlvar*dlvarx + dlmu/D
+    if output_mask[1]:
+        dgamma = torch.sum(dout*xmu/xivar,dim=0,keepdims=True)
+    if output_mask[2]:
+        dbeta = torch.sum(dout,dim=0,keepdims=True)
     return dx, dgamma, dbeta
+
 
 class OurSoftmaxMatMul(nn.Module):
     def __init__(self, dim=-1, keep_frac=0.5,sparse_mode = 'norm'):
@@ -215,7 +195,7 @@ class softmax_matmul(torch.autograd.Function):
         input1_sm = torch.softmax(input1, dim)
         input2 = to_matmul_input2.transpose(-2, -1)
         ctx.dim = dim
-        gather_index = rl.get_batch_score(input1_sm, input2, keep_frac = keep_frac)
+        gather_index = rl.get_batch_score(input1_sm, input2, keep_frac = keep_frac, sparse_mode = sparse_mode)
         sparse_x_1 = rl.get_sparse_input(input1_sm, gather_index)
         sparse_x_2 = rl.get_sparse_input(input2, gather_index)
         ctx.save_for_backward(sparse_x_1.to_sparse(), sparse_x_2.to_sparse())

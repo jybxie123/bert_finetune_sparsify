@@ -909,3 +909,7 @@ python里面说c的问题，一般都是conda install版本。
 第二阶段：严谨实验，设计实验，对比性能
 第三阶段：paper
 
+测试1：
+发现norm的index selection方式消耗的内存太高了。
+CUDA_VISIBLE_DEVICES=0 python src/train.py
+CUDA_VISIBLE_DEVICES=0 python /disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/train.py

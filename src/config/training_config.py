@@ -7,9 +7,10 @@ from dataclasses import dataclass
 @dataclass
 class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
-    hidden_act: str = 'gelu'
+    hidden_act: str = 'relu' # 'relu' 'relu_inplace'
     model_name: str="bert-base-cased"
-    mode = 'norm'
+    mode = 'bkrz' # ['nosp', 'rand', 'norm', 'bkrz']
+    keep_frac: float=0.5
     run_validation: bool=True
     batch_size_training: int=32
     val_batch_size: int=32
@@ -30,10 +31,10 @@ class train_config:
     quantization: bool = False
     one_gpu: bool = False
     save_model: bool = True
-    is_sparse_softmax = True
+    is_sparse_softmax = False
     is_sparse_layer_norm = False
     dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
-    expr_name: str = 'bert_yelp_gelu_20000_all_sparsity_1_norm_w_st_no_ln'
+    expr_name: str = 'bert_yelp_gelu_20000_all_sparsity_0_bkrz_no_st_no_ln'
     ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
     load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
     output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"

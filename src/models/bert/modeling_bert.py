@@ -27,7 +27,6 @@ import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -40,8 +39,6 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/models/bert')
-from modeling_utils import PreTrainedModel
 from transformers.pytorch_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from transformers.utils import (
     ModelOutput,
@@ -55,8 +52,13 @@ from transformers.models.bert.configuration_bert import BertConfig
 from transformers.models.auto.modeling_auto import AutoModelForSequenceClassification
 from transformers.models.auto.configuration_auto import AutoConfig
 import torch.nn.functional as F
-from . import custom_linear as cl
-from . import rand_layers as rl
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/models/bert')
+from trans_utils.activations import ACT2FN
+from trans_utils.modeling_utils import PreTrainedModel
+from sparse_mode import custom_linear as cl
+from sparse_mode import rand_layers as rl
+from sparse_mode import back_razor as br
+
 
 logger = logging.get_logger(__name__)
 
@@ -191,46 +193,8 @@ class CustomBertConfig(BertConfig):
         super().__init__(**config.to_dict())
         self.mode = mode
 
-class OurNoSparseLinear(nn.Linear):
-    # linear_idx is the index of the linear layer
-    # step_idx is the index of iteration 
-    # act_type: relu or silu
-    # 我决定不为lienar_idx提供默认值，这样能避免出错。
-    def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None, linear_idx = None, act_type = None) -> None:
-        super().__init__(in_features, out_features, bias, device, dtype)
-        # print('OurNoSparseLinear step idx = 0')
-        self.step_idx = 0
-        self.linear_idx = linear_idx
-        self.act_type = act_type
-    
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        layer_output = F.linear(input, self.weight, self.bias)
-        # cl.cal_zero_ratio(layer_output, self.linear_idx, self.step_idx, self.act_type)
-        # print('Ourlinear step idx + 1')
-        self.step_idx += 1
-        return layer_output
-        
-    # 这个函数仅仅用作测试结构上是否已经完整，不需要在真实测试中使用。
-    # def named_modules(self, memo: Optional[Set['Module']] = None, prefix: str = '', remove_duplicate: bool = True):
-    #     # 在这里，我们将会重写 named_modules 的行为
-    #     # 例如，我们可以过滤掉特定的层或者改变返回的名称
-
-    #     modules = super().named_modules(memo, prefix)
-
-    #     for name, module in modules:
-    #         if module in self.__dict__.values():
-    #             # 如果是，添加自定义前缀或更改名称
-    #             name = 'our_linear_' + name if name else 'our_linear'
-    #         yield name, module
-
-# # self difination func: cal the zero ratio
 
 
-# def Our_F_Linear(input, weight, bias, linear_idx=None, step_idx=None, act_type=None):
-#     res = F.linear(input, weight, bias)
-#     # cal_zero_ratio(res, linear_idx, step_idx, act_type)
-#     return res
 
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
@@ -245,9 +209,13 @@ class BertEmbeddings(nn.Module):
         # any TensorFlow checkpoint file
         if config.is_sparse_layer_norm:
             if config.sparse_mode == 'norm':
-                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'rand':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            elif config.sparse_mode == 'nosp':
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            elif config.sparse_mode == 'bcrz':
+                self.LayerNorm = br.BackRazorLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac)
             else:
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         else:
@@ -323,23 +291,27 @@ class BertSelfAttention(nn.Module):
         # self.key = nn.Linear(config.hidden_size, self.all_head_size)
         # self.value = nn.Linear(config.hidden_size, self.all_head_size)
         if config.sparse_mode == 'norm':
-            self.query = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.key = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.value = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.mm1 = cl.OurMatMul(linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.mm2 = cl.OurMatMul(linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-        
-        # 1. 先复现backrazor,然后不行再移植过来.
-        # elif config.sparse_mode == 'backRazor': # 暂时其他的norm、softmax都没实现backrazor的写法.
-        #     self.query = cl.LinearSparse(config.hidden_size, self.all_head_size, masker=masker)
-        #     self.key = cl.LinearSparse(config.hidden_size, self.all_head_size, masker=masker)
-        #     self.value = cl.LinearSparse(config.hidden_size, self.all_head_size, masker=masker)
-        #     self.mm1 = torch.matmul
-        #     self.mm2 = torch.matmul
+            self.query = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.key = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.value = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm1 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm2 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'bkrz': # 暂时其他的norm、softmax都没实现backrazor的写法.
+            self.query = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act)
+            self.key = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
+            self.value = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act)
+            self.mm1 = torch.matmul
+            self.mm2 = torch.matmul
         elif config.sparse_mode == 'rand':
-            self.query = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.key = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.value = cl.OurLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.query = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.key = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.value = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm1 = torch.matmul
+            self.mm2 = torch.matmul
+        elif config.sparse_mode == 'nosp':
+            self.query = ns.OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act)
+            self.key = ns.OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
+            self.value = ns.OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act)
             self.mm1 = torch.matmul
             self.mm2 = torch.matmul
         else: # 完全不稀疏的默认模式
@@ -350,6 +322,8 @@ class BertSelfAttention(nn.Module):
             self.mm2 = torch.matmul
         if config.sparse_mode == 'norm' and config.is_sparse_softmax:
             self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'bkrz' and config.is_sparse_softmax:
+            self.softmax_mm2 = br.BackRazorSoftmaxMatMul(dim=-1, keep_frac=0.5)
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = position_embedding_type or getattr(
             config, "position_embedding_type", "absolute"
@@ -504,17 +478,25 @@ class BertSelfOutput(nn.Module):
         super().__init__()
         # self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         if config.sparse_mode == 'norm':
-            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
-            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nosp':
+            self.dense = OurNoSparseLinear(config.hidden_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act)
+        elif config.sparse_mode == 'bkrz':
+            self.dense = br.BackRazorLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act)
         else:
             self.dense = OurNoSparseLinear(config.hidden_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act)
         # tobesparse: our sparse norm
         if config.is_sparse_layer_norm:
             if config.sparse_mode == 'norm':
-                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'rand':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            elif config.sparse_mode == 'nosp':
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            elif config.sparse_mode == 'bkrz':
+                self.LayerNorm = br.BackRazorLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac)
             else:
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         else: 
@@ -583,9 +565,13 @@ class BertIntermediate(nn.Module):
     def __init__(self, config,layer_idx):
         super().__init__()
         if config.sparse_mode == 'norm':
-            self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
-            self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nosp':
+            self.dense = OurNoSparseLinear(config.hidden_size, config.intermediate_size,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act)
+        elif config.sparse_mode == 'bkrz':
+            self.dense = br.BackRazorLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act)
         else:
             self.dense = OurNoSparseLinear(config.hidden_size, config.intermediate_size,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act)
         if isinstance(config.hidden_act, str):
@@ -613,18 +599,26 @@ class BertOutput(nn.Module):
     def __init__(self, config,layer_idx):
         super().__init__()
         if config.sparse_mode == 'norm':
-            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
-            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nosp':
+            self.dense = OurNoSparseLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act)
+        elif config.sparse_mode == 'bkrz':
+            self.dense = br.BackRazorLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act)
         else:
             self.dense = OurNoSparseLinear(config.intermediate_size, config.hidden_size, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act)
         # self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         # tobesparse: our sparse norm
         if config.is_sparse_layer_norm:
             if config.sparse_mode == 'norm':
-                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, sparse_mode=config.sparse_mode)
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'rand':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            elif config.sparse_mode == 'nosp':
+                self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            elif config.sparse_mode == 'bkrz':
+                self.LayerNorm = br.BackRazorLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac)
             else:
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         else:
@@ -824,9 +818,13 @@ class BertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         if config.sparse_mode == 'norm':
-            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
-            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nosp':
+            self.dense = OurNoSparseLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act)
+        elif config.sparse_mode == 'bkrz':
+            self.dense = br.BackRazorLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act)
         else:
             self.dense = OurNoSparseLinear(config.hidden_size, config.hidden_size, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act)
         # self.dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -1166,9 +1164,13 @@ class BertForSequenceClassification(BertPreTrainedModel):
         )
         self.dropout = nn.Dropout(classifier_dropout)
         if config.sparse_mode == 'norm':
-            self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
-            self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nosp':
+            self.classifier = OurNoSparseLinear(config.hidden_size, config.num_labels, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
+        elif config.sparse_mode == 'bkrz':
+            self.classifier = br.BackRazorLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
         else:
             self.classifier = OurNoSparseLinear(config.hidden_size, config.num_labels, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
         # self.classifier = nn.Linear(config.hidden_size, config.num_labels)
@@ -1255,7 +1257,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         )
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, sparse_mode, is_sparse_softmax = False, is_sparse_layer_norm = False,*model_args, **kwargs):
-        model = super().from_pretrained(pretrained_model_name_or_path, sparse_mode, is_sparse_softmax, is_sparse_layer_norm,*model_args, **kwargs)
+    def from_pretrained(cls, pretrained_model_name_or_path, sparse_mode, keep_frac=0.5, is_sparse_softmax = False, is_sparse_layer_norm = False,*model_args, **kwargs):
+        model = super().from_pretrained(pretrained_model_name_or_path, sparse_mode, keep_frac, is_sparse_softmax, is_sparse_layer_norm,*model_args, **kwargs)
         return model
 
