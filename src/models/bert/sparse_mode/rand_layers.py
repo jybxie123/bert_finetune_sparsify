@@ -41,12 +41,15 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         raise ValueError('input1 shape is not supported')
     if sparse_mode == 'norm':
         # print('input shape, batch size, feature len, kept: ',input.shape, batch_size, feature_len, kept_feature_size)
-        input_flatted1 = input1.reshape(-1, input1.shape[-1])
-        temp_input1_norm = torch.norm(input_flatted1, dim=0) # 对列求范数 
+        input1.reshape(-1, input1.shape[-1])
+        # 根据讨论交流的结果，一范数和无穷范数应该是更好的选择
+        # temp_input1_norm = torch.norm(input1, dim=0) # 对列求范数 
+        # temp_input1_norm = torch.norm(input1, p=1, dim=0) # 对列求范数 
+        temp_input1_norm = torch.norm(input1, p='inf', dim=0) # 对列求范数 
         sf_temp_input1_norm = torch.softmax(temp_input1_norm, dim=0)
         if input2 is not None:
-            input_flatted2 = input2.reshape(-1, input2.shape[-1])
-            temp_input2_norm = torch.norm(input_flatted2, dim=0) # 对列求范数   
+            input2.reshape(-1, input2.shape[-1])
+            temp_input2_norm = torch.norm(input2, dim=0) # 对列求范数   
             sf_temp_input2_norm = torch.softmax(temp_input2_norm, dim=0)
             score = sf_temp_input1_norm / input1.shape[-2] + sf_temp_input2_norm / input2.shape[-2] # （加权）
         else:

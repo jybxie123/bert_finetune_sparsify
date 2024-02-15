@@ -58,6 +58,7 @@ from trans_utils.modeling_utils import PreTrainedModel
 from sparse_mode import custom_linear as cl
 from sparse_mode import rand_layers as rl
 from sparse_mode import back_razor as br
+from sparse_mode import no_sparse_linear as ns
 
 
 logger = logging.get_logger(__name__)
@@ -315,9 +316,9 @@ class BertSelfAttention(nn.Module):
             self.mm1 = torch.matmul
             self.mm2 = torch.matmul
         else: # 完全不稀疏的默认模式
-            self.query = OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act)
-            self.key = OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
-            self.value = OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act)
+            self.query = ns.OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act)
+            self.key = ns.OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
+            self.value = ns.OurNoSparseLinear(config.hidden_size, self.all_head_size, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act)
             self.mm1 = torch.matmul
             self.mm2 = torch.matmul
         if config.sparse_mode == 'norm' and config.is_sparse_softmax:
