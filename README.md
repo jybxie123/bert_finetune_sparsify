@@ -17,6 +17,7 @@ pip install -r requirements.txt
 If it doesn't work, give me an issue.
 
 ## Config
+```
 model_type: str= 'pretrained' # pretrained' or 'finetuned'，从外部预训练模型还是本地微调后的模型导入
 hidden_act: str = 'relu' # 'relu' 'relu_inplace'，就地relu还是原relu或者gelu
 model_name: str="bert-base-cased" # model名称，请谨慎修改
@@ -29,6 +30,7 @@ expr_name: str = 'bert_yelp_relu_20000_all_sparsity_0_norm_no_st_no_ln_inf' # �
 ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # 模型微调后的保存位置
 load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # 如果从本地导入模型，导入的路径 
 log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs" # 实验过程中保留的性能记录位置。这些是重要的实验评估数据
+```
 
 ## Training
 Before you run your code, edit your training_config to make sure it runs as you think.
