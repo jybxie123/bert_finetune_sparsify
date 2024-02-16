@@ -45,7 +45,8 @@ class train_config:
     # checkpoint
     ckpt_idx: int = 6
 
-    enable_fsdp: bool=True # False 我得用多gpu，不然跑的巨慢。
+    # unused multi gpu training
+    enable_fsdp: bool=True # False 
     use_fp16: bool=True # False
     use_fast_kernels: bool = False # Enable using SDPA from PyTroch Accelerated Transformers, make use Flash Attention and Xformer memory-efficient kernels
     low_cpu_fsdp: bool=False # 这个尽量别开，会慢很多
