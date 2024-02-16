@@ -5,4 +5,5 @@ checkpoint/
 *.txt
 __pycache__
 *.pt
+*.pyc
 
