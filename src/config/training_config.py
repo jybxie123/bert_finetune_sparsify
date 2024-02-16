@@ -9,7 +9,7 @@ class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
     hidden_act: str = 'relu' # 'relu' 'relu_inplace'
     model_name: str="bert-base-cased"
-    mode = 'bkrz' # ['nosp', 'rand', 'norm', 'bkrz']
+    mode = 'norm' # ['nosp', 'rand', 'norm', 'bkrz']
     keep_frac: float=0.5
     run_validation: bool=True
     batch_size_training: int=32
@@ -34,7 +34,7 @@ class train_config:
     is_sparse_softmax = False
     is_sparse_layer_norm = False
     dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
-    expr_name: str = 'bert_yelp_gelu_20000_all_sparsity_0_bkrz_no_st_no_ln'
+    expr_name: str = 'bert_yelp_relu_20000_all_sparsity_0_norm_no_st_no_ln_inf'
     ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
     load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
     output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"
