@@ -2,7 +2,7 @@
 *This is our source code of Bert finetune with backward sparsify in column form way.*
 ## Introduction
 Our code is for sparsifying the gradient of backpropagation. To achieve this goal and get a better performance than the former works, we find a new method of sparsify based in column selection and evaluation of feature of input.
-![image](https://github.com/jybxie123/bert_finetune_sparsify/assets/66007115/f1eceb16-632a-44bd-ad4b-334cb803a838)
+![Image text]
 
 
 ## Framework
