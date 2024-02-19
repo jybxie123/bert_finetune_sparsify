@@ -10,7 +10,7 @@ class train_config:
     hidden_act: str = 'relu' # 'relu' 'relu_inplace'
     model_name: str="bert-base-cased"
     mode = 'norm' # ['nosp', 'rand', 'norm', 'bkrz']
-    keep_frac: float=0.5
+    keep_frac: float=0.1
     run_validation: bool=True
     batch_size_training: int=32
     val_batch_size: int=32
@@ -26,6 +26,7 @@ class train_config:
     seed: int=42
     mixed_precision: bool=True
     dataset_name = "yelp_review_full"
+    dataset_length: int = 20000
     freeze_layers: bool = False
     num_freeze_layers: int = 1
     quantization: bool = False
@@ -34,7 +35,7 @@ class train_config:
     is_sparse_softmax = False
     is_sparse_layer_norm = False
     dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
-    expr_name: str = 'bert_yelp_relu_20000_all_sparsity_0_norm_no_st_no_ln_inf'
+    expr_name: str = f'bert_yelp_{hidden_act}_{dataset_length}_9_custom_{mode}_{is_sparse_softmax}_st_{is_sparse_layer_norm}_ln_norm_no_sm_no_weight_no_double_matmul_add_mem_profiler' # _norm_no_sm_no_weight
     ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
     load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
     output_dir: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/metrics"

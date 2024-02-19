@@ -6,4 +6,5 @@ checkpoint/
 __pycache__
 *.pt
 *.pyc
+wandb/
 

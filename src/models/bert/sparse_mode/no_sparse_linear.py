@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class OurNoSparseLinear(nn.Linear):
     # linear_idx is the index of the linear layer
     # step_idx is the index of iteration 
@@ -15,9 +14,9 @@ class OurNoSparseLinear(nn.Linear):
         self.step_idx = 0
         self.linear_idx = linear_idx
         self.act_type = act_type
-    
+        
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        layer_output = noSparseLinear(input, self.weight, self.bias)
+        layer_output = noSparseLinear.apply(input, self.weight, self.bias)
         # cl.cal_zero_ratio(layer_output, self.linear_idx, self.step_idx, self.act_type)
         # print('Ourlinear step idx + 1')
         self.step_idx += 1

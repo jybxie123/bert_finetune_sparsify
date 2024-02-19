@@ -14,10 +14,10 @@ def tokenize_function(examples):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 # 这个样例数据集不大，300M
-small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(20000))
-small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(2000))
+small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(train_config.dataset_length))
+small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(int(train_config.dataset_length/5)))
 train_data = SelfDefDataset(small_train_dataset)
 eval_data = SelfDefDataset(small_eval_dataset)
-print(3)
+print('load dataset done')
 torch.save(train_data, os.path.join(train_config.dataset_path, 'train_data.pt'))
 torch.save(eval_data, os.path.join(train_config.dataset_path, 'eval_data.pt'))
