@@ -53,6 +53,7 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         if len(input2.shape) == 1:
             raise ValueError('input2 shape is not supported')
     kept_feature_size = int(input1.shape[-1] * keep_frac + 0.999)
+    # print('keep_frac : ',keep_frac)
     if len(input1.shape) == 1:
         raise ValueError('input1 shape is not supported')
     if sparse_mode == 'norm':
@@ -63,30 +64,32 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         # 根据讨论交流的结果，一范数和无穷范数应该是更好的选择
         # temp_input1_norm = torch.norm(input1, dim=0) # 对列求范数 
         # temp_input1_norm = torch.norm(input1, p=1, dim=0) # 对列求范数 
-        temp_input1_norm, _ = torch.max(torch.abs(input1), dim=0) # 对列求无穷范数 
+        # temp_input1_norm, _ = torch.max(torch.abs(input1), dim=0) # 对列求无穷范数 
+        temp_input1_var = torch.var(input1, dim=0)# 对列求方差
         # sf_temp_input1_norm = torch.softmax(temp_input1_norm, dim=0)
         if input2 is not None:
             shape2 = input2.shape
             input2 = input2.reshape(-1, shape2[-1])
             # temp_input2_norm = torch.norm(input2, dim=0) # 对列求范数 
-
-            temp_input2_norm, _ = torch.max(torch.abs(input2), dim=0)# 对列求范数   
-            score = temp_input1_norm + temp_input2_norm
+            # temp_input2_norm, _ = torch.max(torch.abs(input2), dim=0)# 对列求无穷范数 
+            temp_input2_var = torch.var(input2, dim=0)# 对列求方差
+            score = temp_input1_var + temp_input2_var
             # sf_temp_input2_norm = torch.softmax(temp_input2_norm, dim=0)
             # score = sf_temp_input1_norm / shape1[-2] + sf_temp_input2_norm / shape2[-2] # （加权）
             # score = temp_input1_norm / input1.shape[-2] + temp_input2_norm / input2.shape[-2] # （加权）
         else:
-            score = temp_input1_norm
+            score = temp_input1_var
             # score = sf_temp_input1_norm / shape1[-2]
             # score = temp_input1_norm / input1.shape[-2]
         # 这里的index是
+        # print('score : ',score)
         gather_index = torch.argsort(score, descending=True)[..., :kept_feature_size]
         # gather_index = torch.argsort(score, descending=True)[kept_feature_size:]
         # print('gather_index shape : ',gather_index.shape)
         result = gather_index.reshape(-1)
-        del temp_input1_norm, score, gather_index, kept_feature_size, shape1, input1  # 删除原始变量
+        del temp_input1_var, score, gather_index, kept_feature_size, shape1, input1  # 删除原始变量
         if input2 is not None:
-            del temp_input2_norm, shape2, input2
+            del temp_input2_var, shape2, input2
         # torch.cuda.empty_cache()  # 清空 CUDA 缓存
         return result
     elif sparse_mode == 'rand': # randAD
@@ -95,7 +98,7 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         # print('gather_index shape : ',gather_index.shape)
         result = gather_index.clone()  # 创建一个 gather_index 的副本
         del full_indices, gather_index, sparse_mode,   # 删除原始变量
-        # torch.cuda.empty_cache()  # 清空 CUDA 缓存
+        # torch.cuda.empty_cache()  # 清空 CUDA 缓存 # to do 算mem之前可以加一下。
         return result
 
 # ===========================back razor===========================
@@ -177,9 +180,9 @@ def unsparsify(shape, mask, sparse, with_batch_size=False):
 
 def idx_sparse(sp_out):
     fl_keep_col = sp_out.indices().shape[-1]/reduce(operator.mul, sp_out.size()[:-1]) + 0.999
-    print('fl_keep_col : ',fl_keep_col)
+    # print('fl_keep_col : ',fl_keep_col)
     keep_col = int(fl_keep_col)
-    print('keep_col : ',keep_col)
+    # print('keep_col : ',keep_col)
     return sp_out.indices()[-1,range(keep_col)],sp_out.size()
 
 from functools import reduce
@@ -196,10 +199,10 @@ def idx_unsparse(new_sp_out):
     grid_repeated = [g.repeat_interleave(repeats) for g in grid_flat]
     # 重复非零列索引以匹配前三维的每个位置
     repeated_cols = non_zero_cols.repeat(reduce(operator.mul, tensor_size[:-1]))
-    print('non_zero_cols shape : ',non_zero_cols.shape)
-    print('tensor_size : ',tensor_size)
-    print('grid_repeated shape : ',grid_repeated[0].shape)
-    print('repeated_cols shape : ',repeated_cols.shape)
+    # print('non_zero_cols shape : ',non_zero_cols.shape)
+    # print('tensor_size : ',tensor_size)
+    # print('grid_repeated shape : ',grid_repeated[0].shape)
+    # print('repeated_cols shape : ',repeated_cols.shape)
     indices = torch.stack(grid_repeated + [repeated_cols])
 
     # 调整indices的形状以匹配原始稀疏张量indices的布局
@@ -210,7 +213,7 @@ import torch.nn.functional as F
 import time
 if __name__ == "__main__":
     start = time.perf_counter()
-    input = torch.randn(32,12,512,512)
+    input = torch.randn(2,3,4,5)
     idx = get_batch_score(input,None, 0.5, 'norm')
     print(idx)
     print('idx shape : ',idx.shape)
@@ -221,16 +224,17 @@ if __name__ == "__main__":
     ds_out = sp_out.to_dense()
     print('sp_out indices shape : ',sp_out.indices().shape)
     print('sp_out values shape : ',sp_out.values().shape)
-    print('ds_out shape : ',ds_out.shape)
-    new_sp_out = idx_sparse(sp_out)
-    ori_sp_out = idx_unsparse(new_sp_out)
-    equal = torch.equal(sp_out.indices(), ori_sp_out)
-    print(equal) 
-    if not equal:
-        result = sp_out.indices() - ori_sp_out
-        print(result)
-    end = time.perf_counter()
-    print('Running time: %s Seconds'%(end-start))
+    # 问题所在：数据量够大时，本就有可能有0值，这些也会被sparse掉。
+    # print('ds_out shape : ',ds_out.shape)
+    # new_sp_out = idx_sparse(sp_out)
+    # ori_sp_out = idx_unsparse(new_sp_out)
+    # equal = torch.equal(sp_out.indices(), ori_sp_out)
+    # print(equal)
+    # if not equal:
+    #     result = sp_out.indices() - ori_sp_out
+    #     print(result)
+    # end = time.perf_counter()
+    # print('Running time: %s Seconds'%(end-start))
     # shape = input.shape
     # input = input.reshape(-1, input.shape[-1])
     # print(input.shape)

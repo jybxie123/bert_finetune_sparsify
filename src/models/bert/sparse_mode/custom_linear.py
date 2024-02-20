@@ -139,6 +139,7 @@ class sparse_layer_norm(torch.autograd.Function):
             ctx.layer_norm_parameters =  input_mean, inputivar, normalized_shape # 传递需要norm的维度
             ctx.save_for_backward(sparse_input.to_sparse(), weight)
             out = torch.layer_norm(input, normalized_shape, weight, bias, eps)
+            del input, gather_index, sparse_input, input_mean, input_var, inputivar, weight, bias
         return out
     # 这里试了超级久，最后发现backward实际的做法并不能用在这种情景下。我们的forward用的是另一个向量，因此input没办法计算。
     @staticmethod
@@ -154,6 +155,7 @@ class sparse_layer_norm(torch.autograd.Function):
         output_mask = [ctx.needs_input_grad[0], ctx.needs_input_grad[2], ctx.needs_input_grad[3]]
         grad_input, grad_weight, grad_bias = layernorm_backward(grad_output, (inputmu, inputivar, weight, D), output_mask)
         ctx.layer_norm_parameters = None
+        del sparse_input, ori_input, input_mean, inputivar, input, grad_output, inputmu, D, total_dim, weight
         return grad_input, None, grad_weight, grad_bias, None, None, None, None, None, None, None, None, None, None, None
 
 def layernorm_backward(dout, cache, output_mask):

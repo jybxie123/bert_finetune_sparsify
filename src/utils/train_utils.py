@@ -132,10 +132,11 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
                     train_step_loss.append(loss.detach().float().item())
                     train_step_perplexity.append(float(torch.exp(loss.detach().float())))
                 total_loss += loss.detach().float()
-                torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成
-                memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
                 wandb.watch(model, log="gradients")
-                loss.backward()
+                torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
+                memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
+                # 这里可能没清干净，变成zero了。不是浮点数了。
+                loss.backward() # retain_graph=True keep住前项的内容。peek mem以及差值memory
                 torch.cuda.synchronize()
                 memory_usage_after = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
                 gradient_memory_usage = memory_usage_after - memory_usage_before 
@@ -151,7 +152,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
                     if train_config.gradient_clipping and train_config.gradient_clipping_threshold > 0.0:
                         torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.gradient_clipping_threshold)
                     optimizer.step()
-                    optimizer.zero_grad()
+                    optimizer.zero_grad() # gradient -> 0 float to int 0, set to 0, still here.
                     pbar.update(1)
                 pbar.set_description(f"Training Epoch: {epoch+1}/{train_config.num_epochs}, step {step}/{len(train_dataloader)} completed (loss: {loss.detach().float()})")
                 if train_config.save_metrics:
