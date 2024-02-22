@@ -160,7 +160,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
                 # log_memory_usage(step)
             pbar.close()
             
-        wandb.log({"loss": loss.item()})
+        # wandb.log({"loss": loss.item()})
         epoch_end_time = time.perf_counter()-epoch_start_time
         epoch_times.append(epoch_end_time)
         train_epoch_loss = total_loss / len(train_dataloader)
@@ -170,6 +170,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
         train_loss.append(float(train_epoch_loss))
         accu = metrics.compute()['accuracy']
         train_accu.append(accu)
+        wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
         with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
             f.write(f"===================Epoch {epoch+1}: train_accu={accu}=================\n")
             f.write(f"Time taken for epoch {epoch+1} is {epoch_end_time}\n")

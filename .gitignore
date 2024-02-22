@@ -2,6 +2,7 @@ src/utils/*.pyc
 src/utils/__pycache__/*.pyc
 src/utils/models_checkpointing/__pycache__/*.pyc
 checkpoint/
+checkpoint_bak/
 *.txt
 __pycache__
 *.pt

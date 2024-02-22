@@ -64,21 +64,21 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         # 根据讨论交流的结果，一范数和无穷范数应该是更好的选择
         # temp_input1_norm = torch.norm(input1, dim=0) # 对列求范数 
         # temp_input1_norm = torch.norm(input1, p=1, dim=0) # 对列求范数 
-        # temp_input1_norm, _ = torch.max(torch.abs(input1), dim=0) # 对列求无穷范数 
-        temp_input1_var = torch.var(input1, dim=0)# 对列求方差
-        # sf_temp_input1_norm = torch.softmax(temp_input1_norm, dim=0)
+        temp_input1_norm, _ = torch.max(torch.abs(input1), dim=0) # 对列求无穷范数 
+        # temp_input1_norm = torch.var(input1, dim=0)# 对列求方差
+        sf_temp_input1_norm = torch.softmax(temp_input1_norm, dim=0)
         if input2 is not None:
             shape2 = input2.shape
             input2 = input2.reshape(-1, shape2[-1])
             # temp_input2_norm = torch.norm(input2, dim=0) # 对列求范数 
-            # temp_input2_norm, _ = torch.max(torch.abs(input2), dim=0)# 对列求无穷范数 
-            temp_input2_var = torch.var(input2, dim=0)# 对列求方差
-            score = temp_input1_var + temp_input2_var
-            # sf_temp_input2_norm = torch.softmax(temp_input2_norm, dim=0)
+            temp_input2_norm, _ = torch.max(torch.abs(input2), dim=0)# 对列求无穷范数 
+            # temp_input2_norm = torch.var(input2, dim=0)# 对列求方差
+            # score = temp_input1_var + temp_input2_norm
+            sf_temp_input2_norm = torch.softmax(temp_input2_norm, dim=0)
             # score = sf_temp_input1_norm / shape1[-2] + sf_temp_input2_norm / shape2[-2] # （加权）
-            # score = temp_input1_norm / input1.shape[-2] + temp_input2_norm / input2.shape[-2] # （加权）
+            score = sf_temp_input1_norm / input1.shape[-2] + sf_temp_input2_norm / input2.shape[-2] # （加权）
         else:
-            score = temp_input1_var
+            score = sf_temp_input1_norm / input1.shape[-2]
             # score = sf_temp_input1_norm / shape1[-2]
             # score = temp_input1_norm / input1.shape[-2]
         # 这里的index是
@@ -87,9 +87,45 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         # gather_index = torch.argsort(score, descending=True)[kept_feature_size:]
         # print('gather_index shape : ',gather_index.shape)
         result = gather_index.reshape(-1)
-        del temp_input1_var, score, gather_index, kept_feature_size, shape1, input1  # 删除原始变量
+        del temp_input1_norm, score, gather_index, kept_feature_size, shape1, input1  # 删除原始变量
         if input2 is not None:
-            del temp_input2_var, shape2, input2
+            del temp_input2_norm, shape2, input2
+        # torch.cuda.empty_cache()  # 清空 CUDA 缓存
+        return result
+    elif sparse_mode == 'vrce':
+        # print('input shape, batch size, feature len, kept: ',input.shape, batch_size, feature_len, kept_feature_size)
+        shape1 = input1.shape
+        input1 = input1.reshape(-1, shape1[-1]) # eg：32，12，512，64-> xxx, 64, 64是列！
+
+        # 根据讨论交流的结果，一范数和无穷范数应该是更好的选择
+        # temp_input1_norm = torch.norm(input1, dim=0) # 对列求范数 
+        # temp_input1_norm = torch.norm(input1, p=1, dim=0) # 对列求范数 
+        # temp_input1_norm, _ = torch.max(torch.abs(input1), dim=0) # 对列求无穷范数 
+        temp_input1_norm = torch.var(input1, dim=0)# 对列求方差
+        sf_temp_input1_norm = torch.softmax(temp_input1_norm, dim=0)
+        if input2 is not None:
+            shape2 = input2.shape
+            input2 = input2.reshape(-1, shape2[-1])
+            # temp_input2_norm = torch.norm(input2, dim=0) # 对列求范数 
+            # temp_input2_norm, _ = torch.max(torch.abs(input2), dim=0)# 对列求无穷范数 
+            temp_input2_norm = torch.var(input2, dim=0)# 对列求方差
+            # score = temp_input1_var + temp_input2_norm
+            sf_temp_input2_norm = torch.softmax(temp_input2_norm, dim=0)
+            # score = sf_temp_input1_norm / shape1[-2] + sf_temp_input2_norm / shape2[-2] # （加权）
+            score = sf_temp_input1_norm / input1.shape[-2] + sf_temp_input2_norm / input2.shape[-2] # （加权）
+        else:
+            score = sf_temp_input1_norm / input1.shape[-2]
+            # score = sf_temp_input1_norm / shape1[-2]
+            # score = temp_input1_norm / input1.shape[-2]
+        # 这里的index是
+        # print('score : ',score)
+        gather_index = torch.argsort(score, descending=True)[..., :kept_feature_size]
+        # gather_index = torch.argsort(score, descending=True)[kept_feature_size:]
+        # print('gather_index shape : ',gather_index.shape)
+        result = gather_index.reshape(-1)
+        del temp_input1_norm, score, gather_index, kept_feature_size, shape1, input1  # 删除原始变量
+        if input2 is not None:
+            del temp_input2_norm, shape2, input2
         # torch.cuda.empty_cache()  # 清空 CUDA 缓存
         return result
     elif sparse_mode == 'rand': # randAD

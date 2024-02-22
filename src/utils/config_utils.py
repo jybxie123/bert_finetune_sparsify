@@ -70,7 +70,7 @@ def generate_dataset_config(train_config, kwargs):
 
 def get_dataloader_kwargs(train_config, dataset, tokenizer, mode):
         kwargs = {}
-        batch_size = train_config.batch_size_training if mode=="train" else train_config.val_batch_size
+        batch_size = train_config.batch_size_training if mode=="train" else train_config.batch_size_val
         if train_config.batching_strategy == "padding":
             if train_config.enable_fsdp:
                 kwargs["batch_sampler"] = DistributedLengthBasedBatchSampler(

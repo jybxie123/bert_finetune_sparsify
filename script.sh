@@ -913,3 +913,29 @@ python里面说c的问题，一般都是conda install版本。
 发现norm的index selection方式消耗的内存太高了。
 CUDA_VISIBLE_DEVICES=0 python src/train.py
 CUDA_VISIBLE_DEVICES=0 python /disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/train.py
+
+
+test：
+0.57
+var {'accuracy': 0.59075}
+norm inf{'accuracy': 0.6195}
+
+20000
+nosp epoch 5:
+{'accuracy': 0.564}
+{'accuracy': 0.5915}
+{'accuracy': 0.6}
+{'accuracy': 0.6085}
+{'accuracy': 0.565}
+
+
+train:
+20000
+var norm epoch 10
+inf norm epoch 10
+nosp epoch 10
+
+100000
+inf norm epoch 10
+nosp epoch 10
+var norm epoch 10
