@@ -35,7 +35,7 @@ def main(**kwargs):
             eval_data,
             num_workers=train_config.num_workers_dataloader,
             # pin_memory=True,
-            batch_size=train_config.val_batch_size,
+            batch_size=train_config.batch_size_val,
             # **val_dl_kwargs,
         )
 
@@ -49,8 +49,6 @@ def main(**kwargs):
             sparse_mode = train_config.mode,
             keep_frac = train_config.keep_frac,
             is_sparse_softmax = train_config.is_sparse_softmax,
-            is_sparse_layer_norm = train_config.is_sparse_layer_norm,
-            num_labels=5,
             config=config)
         ckpt = torch.load(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
