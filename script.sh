@@ -937,5 +937,10 @@ nosp epoch 10
 
 100000
 inf norm epoch 10
-nosp epoch 10
 var norm epoch 10
+nosp epoch 10
+
+
+test: win 0 : 100000 vrce
+win 1 : 100000 norm
+win 2 : 100000 nosp

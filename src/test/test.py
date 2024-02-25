@@ -43,7 +43,7 @@ wandb.init(
         'scheduler': "StepLR",
         'mixed_precision': train_config.mixed_precision,
     },
-    project='bert-sparsity-0',
+    project='bert-sparsity-test',
     entity='bert-sparsify',
     notes=socket.gethostname(),
     name=train_config.expr_name,
@@ -54,7 +54,7 @@ wandb.init(
 
 predictions = []
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-epoch = 5 # old version is 5
+epoch = 10 # old version is 5
 for ckpt_idx in range(epoch):
     config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased")
     model = BertForSequenceClassification.from_pretrained( # BertForSequenceClassification
