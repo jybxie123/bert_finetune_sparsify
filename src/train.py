@@ -22,8 +22,8 @@ def main(**kwargs):
     train_config = TRAIN_CONFIG()
     update_config((train_config), **kwargs)
 
-    train_data = torch.load(os.path.join(train_config.dataset_path, 'train_data.pt'))
-    eval_data = torch.load(os.path.join(train_config.dataset_path, 'eval_data.pt'))
+    train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data_{train_config.dataset_length}.pt'))
+    eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data_{train_config.dataset_length}.pt'))
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         num_workers=train_config.num_workers_dataloader,

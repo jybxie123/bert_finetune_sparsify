@@ -4,8 +4,9 @@ src/utils/models_checkpointing/__pycache__/*.pyc
 checkpoint/
 checkpoint_bak/
 *.txt
-__pycache__
+*/__pycache__
 *.pt
 *.pyc
 wandb/
+*__pycache__
 

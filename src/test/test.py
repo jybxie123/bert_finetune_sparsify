@@ -21,7 +21,7 @@ import wandb
 # config
 train_config = TRAIN_CONFIG()
 
-test_data = torch.load(os.path.join(train_config.dataset_path, 'test_data.pt'))
+test_data = torch.load(os.path.join(train_config.dataset_path, f'test_data_{train_config.dataset_length}.pt'))
 test_dataloader = torch.utils.data.DataLoader(
     test_data,
     num_workers=train_config.num_workers_dataloader,
@@ -54,8 +54,7 @@ wandb.init(
 
 predictions = []
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-epoch = 10 # old version is 5
-for ckpt_idx in range(epoch):
+for ckpt_idx in range(train_config.num_epochs):
     config = AutoConfig.from_pretrained(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased")
     model = BertForSequenceClassification.from_pretrained( # BertForSequenceClassification
         train_config.model_name, 

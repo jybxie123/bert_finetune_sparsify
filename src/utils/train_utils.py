@@ -121,7 +121,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
             total_gradient_memory_usage = 0
             for step, batch in enumerate(train_dataloader):
                 for key in batch.keys():
-                    batch[key] = batch[key].to('cuda:0')
+                    batch[key] = batch[key].to('cuda:0') #  101, 102 is start and end token
                 outputs = model(**batch)
                 loss = outputs.loss
                 logits = outputs.logits

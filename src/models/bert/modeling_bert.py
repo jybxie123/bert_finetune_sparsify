@@ -200,11 +200,11 @@ def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
         pointer.data = torch.from_numpy(array)
     return model
 
+
 class CustomBertConfig(BertConfig):
     def __init__(self, config, mode = 'norm'):
         super().__init__(**config.to_dict())
         self.mode = mode
-
 
 
 

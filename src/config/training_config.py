@@ -9,7 +9,7 @@ class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
     hidden_act: str = 'relu' # 'relu' 'relu_inplace'
     model_name: str="bert-base-cased"
-    mode = 'nosp' # ['nosp', 'rand', 'norm', 'bkrz','vrce']
+    mode = 'rand' # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2']
     keep_frac: float=0.1
     run_validation: bool=True
     batch_size_training: int=32
@@ -27,7 +27,7 @@ class train_config:
     seed: int=42
     mixed_precision: bool=True
     dataset_name = "yelp_review_full"
-    dataset_length: int = 100000
+    dataset_length: int = 20000
     freeze_layers: bool = False
     num_freeze_layers: int = 1
     quantization: bool = False
@@ -36,7 +36,7 @@ class train_config:
     is_sparse_softmax = False
     is_sparse_layer_norm = False
     dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets"
-    expr_name: str = f'bert_{dataset_name}_{dataset_length}_{hidden_act}_keep_frac_{keep_frac}_epoch_{num_epochs}_custom_{mode}_{is_sparse_softmax}_st_{is_sparse_layer_norm}_ln_0' #_var_no_sm_no_weight' #_norm_no_sm_no_weight_no_double_matmul_add_mem_profiler' # # _norm_no_sm_no_weight
+    expr_name: str = f'bert_{dataset_name}_{dataset_length}_{hidden_act}_keep_frac_{keep_frac}_epoch_{num_epochs}_custom_{mode}_{is_sparse_softmax}_st_{is_sparse_layer_norm}_ln_1' #_var_no_sm_no_weight' #_norm_no_sm_no_weight_no_double_matmul_add_mem_profiler' # # _norm_no_sm_no_weight
     # expr_name: str = f'bert_yelp_{hidden_act}_{dataset_length}_10_custom_{mode}_{is_sparse_softmax}_st_{is_sparse_layer_norm}_ln_{keep_frac}_keep_frac_inf_norm_epoch_{num_epochs}' #_var_no_sm_no_weight' # _norm_no_sm_no_weight
     ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # will be used if using FSDP
     load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # gelu
