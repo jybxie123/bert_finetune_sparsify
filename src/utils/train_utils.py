@@ -49,7 +49,7 @@ def byte2mb(x):
     return int(x / 2**20)
 
 # @profile_to_file()
-def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, gradient_accumulation_steps, train_config):
+def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, lr_scheduler, gradient_accumulation_steps, train_config):
     """
     Trains the model on the given dataloader
 
@@ -74,26 +74,29 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
     val_prep = []
     val_loss =[]
     val_accu = []
+    test_prep = []
+    test_loss = []
+    test_accu = []
 
     # wandb
-    wandb.init(
-        config={
-            'learning_rate': train_config.lr,
-            'batch_size': train_config.batch_size_training,
-            'num_epochs': train_config.num_epochs,
-            'gradient_accumulation_steps': gradient_accumulation_steps,
-            'dataset': train_config.dataset_name,
-            'model': train_config.model_name,
-            'scheduler': "StepLR",
-            'mixed_precision': train_config.mixed_precision,
-        },
-        project='bert-sparsity-0',
-        entity='bert-sparsify',
-        notes=socket.gethostname(),
-        name=train_config.expr_name,
-        job_type="training",
-        reinit=True
-        )
+    # wandb.init(
+    #     config={
+    #         'learning_rate': train_config.lr,
+    #         'batch_size': train_config.batch_size_training,
+    #         'num_epochs': train_config.num_epochs,
+    #         'gradient_accumulation_steps': gradient_accumulation_steps,
+    #         'dataset': train_config.dataset_name,
+    #         'model': train_config.model_name,
+    #         'scheduler': "StepLR",
+    #         'mixed_precision': train_config.mixed_precision,
+    #     },
+    #     project='bert-sparsity-2',
+    #     entity='bert-sparsify',
+    #     notes=socket.gethostname(),
+    #     name=train_config.expr_name,
+    #     job_type="training",
+    #     reinit=True
+    #     )
 
     if train_config.save_metrics:
         metrics_filename = f"{train_config.output_dir}/{train_config.expr_name}/metrics_data-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
@@ -107,6 +110,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
     results = {}
     best_val_loss = float("inf")
     best_val_accu = 0.0
+    best_test_loss = float("inf")
     # add metrics method
     metrics = evaluate.load("accuracy")
     torch.autograd.set_detect_anomaly(True)
@@ -118,10 +122,20 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
             total_loss = 0.0
             total_length = len(train_dataloader)//gradient_accumulation_steps
             pbar = tqdm(colour="blue", desc=f"Training Epoch: {epoch+1}", total=total_length, dynamic_ncols=True)
-            total_gradient_memory_usage = 0
             for step, batch in enumerate(train_dataloader):
                 for key in batch.keys():
                     batch[key] = batch[key].to('cuda:0') #  101, 102 is start and end token
+
+                # ===== run test ===== 
+                if step == int(len(train_dataloader)/2) or step == len(train_dataloader):
+                    test_ppl, test_epoch_loss, temp_test_loss, temp_step_perplexity, epoch_test_accu = evaluation(model, train_config, test_dataloader, epoch = epoch*2+2 if step ==total_length-1 else epoch*2+1, type="test")
+                    if test_epoch_loss < best_test_loss:
+                        best_test_loss = test_epoch_loss
+                        print(f"best eval loss on epoch {epoch+1} is {best_val_loss}")
+                    test_loss.append(float(best_test_loss))
+                    test_prep.append(float(test_ppl))
+                    test_accu.append(epoch_test_accu)
+                    
                 outputs = model(**batch)
                 loss = outputs.loss
                 logits = outputs.logits
@@ -132,21 +146,21 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
                     train_step_loss.append(loss.detach().float().item())
                     train_step_perplexity.append(float(torch.exp(loss.detach().float())))
                 total_loss += loss.detach().float()
-                wandb.watch(model, log="gradients")
-                torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
-                memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
+                # wandb.watch(model, log="gradients")
+                # torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
+                # memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
                 # 这里可能没清干净，变成zero了。不是浮点数了。
                 loss.backward() # retain_graph=True keep住前项的内容。peek mem以及差值memory
-                torch.cuda.synchronize()
-                memory_usage_after = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
-                gradient_memory_usage = memory_usage_after - memory_usage_before 
-                total_gradient_memory_usage += gradient_memory_usage
-                avg_gradient_memory_usage = total_gradient_memory_usage / (step + 1)
-                wandb.log({"Before Memory Usage (GB)": memory_usage_before, 
-                           "After Memory Usage (GB)": memory_usage_after, 
-                           "Gradient Memory Usage (GB)": gradient_memory_usage, 
-                           "Avg Gradient Memory Usage": avg_gradient_memory_usage},
-                           step=step+epoch*total_length)
+                # torch.cuda.synchronize()
+                # memory_usage_after = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
+                # gradient_memory_usage = memory_usage_after - memory_usage_before 
+                # total_gradient_memory_usage += gradient_memory_usage
+                # avg_gradient_memory_usage = total_gradient_memory_usage / (step + 1)
+                # wandb.log({"Before Memory Usage (GB)": memory_usage_before, 
+                #            "After Memory Usage (GB)": memory_usage_after, 
+                #            "Gradient Memory Usage (GB)": gradient_memory_usage, 
+                #            "Avg Gradient Memory Usage": avg_gradient_memory_usage},
+                #            step=step+epoch*total_length)
 
                 if (step + 1) % gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
                     if train_config.gradient_clipping and train_config.gradient_clipping_threshold > 0.0:
@@ -170,7 +184,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
         train_loss.append(float(train_epoch_loss))
         accu = metrics.compute()['accuracy']
         train_accu.append(accu)
-        wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
+        # wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
         with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
             f.write(f"===================Epoch {epoch+1}: train_accu={accu}=================\n")
             f.write(f"Time taken for epoch {epoch+1} is {epoch_end_time}\n")
@@ -185,7 +199,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
         lr_scheduler.step()
 
         if train_config.run_validation:
-            eval_ppl, eval_epoch_loss, temp_val_loss, temp_step_perplexity, epoch_val_accu = evaluation(model, train_config, eval_dataloader)
+            eval_ppl, eval_epoch_loss, temp_val_loss, temp_step_perplexity, epoch_val_accu = evaluation(model, train_config, eval_dataloader, epoch = epoch, type="eval")
             if train_config.save_metrics:
                 val_step_loss.extend(temp_val_loss)
                 val_step_perplexity.extend(temp_step_perplexity)
@@ -194,6 +208,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
             # 只有loss更小的时候才会存。
             # if train_config.save_model and eval_epoch_loss < best_val_loss:
             if train_config.save_model and epoch_val_accu > best_val_accu:
+                # best_val_accu = epoch_val_accu
                 save_model_checkpoint(
                     model, optimizer, train_config, epoch=epoch
                 )
@@ -219,7 +234,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
         if train_config.save_metrics:
             save_to_json(metrics_filename, train_step_loss, train_loss, train_step_perplexity, train_prep, train_accu, val_step_loss, val_loss, val_step_perplexity, val_prep, val_accu)
 
-    wandb.finish()
+    # wandb.finish()
     avg_epoch_time = sum(epoch_times)/ len(epoch_times)
     avg_checkpoint_time = sum(checkpoint_times)/ len(checkpoint_times) if len(checkpoint_times) > 0 else 0
     avg_train_prep = sum(train_prep)/len(train_prep)
@@ -251,7 +266,7 @@ def train(model, train_dataloader,eval_dataloader, optimizer, lr_scheduler, grad
         f.write(f"=====================training stage=====================\n")
     return results
 
-def evaluation(model,train_config, eval_dataloader):
+def evaluation(model,train_config, eval_dataloader, epoch, type="eval"):
     """
     Evaluates the model on the given dataloader
 
@@ -263,6 +278,24 @@ def evaluation(model,train_config, eval_dataloader):
 
     Returns: eval_ppl, eval_epoch_loss
     """
+    # wandb
+    wandb.init(
+        config={
+            'learning_rate': train_config.lr,
+            'batch_size': train_config.batch_size_training,
+            'num_epochs': train_config.num_epochs,
+            'dataset': train_config.dataset_name,
+            'model': train_config.model_name,
+            'scheduler': "StepLR",
+            'mixed_precision': train_config.mixed_precision,
+        },
+        project='bert-sparsity-test-during-train-2',
+        entity='bert-sparsify',
+        notes=socket.gethostname(),
+        name=train_config.expr_name,
+        job_type="test",
+        reinit=True
+        )
     model.eval()
     eval_preds = []
     val_step_loss = []
@@ -292,6 +325,8 @@ def evaluation(model,train_config, eval_dataloader):
             #     tokenizer.batch_decode(preds.detach().cpu().numpy(), skip_special_tokens=True)
             # )
     val_accu = metrics.compute()['accuracy']
+    if type == "test":
+        wandb.log({"test_accuracy": val_accu}, step=epoch)
     # If there's more than one CUDA device, reduce evaluation loss across all devices
     if torch.cuda.device_count() > 1 and train_config.enable_fsdp:
         dist.all_reduce(eval_loss, op=dist.ReduceOp.SUM)
@@ -300,6 +335,7 @@ def evaluation(model,train_config, eval_dataloader):
     eval_ppl = torch.exp(eval_epoch_loss)
     # Print evaluation metrics
     print(f" {eval_ppl=} {eval_epoch_loss=}")
+    wandb.finish()
     return eval_ppl, eval_epoch_loss, val_step_loss, val_step_perplexity, val_accu
 
 

@@ -1,7 +1,7 @@
 # training dataset
 import os
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src')
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
 from config.training_config import train_config as TRAIN_CONFIG
 import self_def_datasets.custom_dataset as custom_dataset
 # add transformer into path
@@ -24,6 +24,7 @@ def main(**kwargs):
 
     train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data_{train_config.dataset_length}.pt'))
     eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data_{train_config.dataset_length}.pt'))
+    test_data = torch.load(os.path.join(train_config.dataset_path, f'test_data_{train_config.dataset_length}.pt'))
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         num_workers=train_config.num_workers_dataloader,
@@ -33,6 +34,13 @@ def main(**kwargs):
     if train_config.run_validation:
         eval_dataloader = torch.utils.data.DataLoader(
             eval_data,
+            num_workers=train_config.num_workers_dataloader,
+            # pin_memory=True,
+            batch_size=train_config.batch_size_val,
+            # **val_dl_kwargs,
+        )
+        test_dataloader = torch.utils.data.DataLoader(
+            test_data,
             num_workers=train_config.num_workers_dataloader,
             # pin_memory=True,
             batch_size=train_config.batch_size_val,
@@ -82,6 +90,7 @@ def main(**kwargs):
         model,
         train_dataloader,
         eval_dataloader,
+        test_dataloader,
         optimizer,
         scheduler,
         train_config.gradient_accumulation_steps,

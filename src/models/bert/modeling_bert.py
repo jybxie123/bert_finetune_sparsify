@@ -52,7 +52,7 @@ from transformers.models.bert.configuration_bert import BertConfig
 from transformers.models.auto.modeling_auto import AutoModelForSequenceClassification
 from transformers.models.auto.configuration_auto import AutoConfig
 import torch.nn.functional as F
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/models/bert')
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src/models/bert')
 from trans_utils.activations import ACT2FN
 from trans_utils.modeling_utils import PreTrainedModel
 from sparse_mode import custom_linear as cl
@@ -224,8 +224,14 @@ class BertEmbeddings(nn.Module):
                 self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'vrce':
                 self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'nml1':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'nml2':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'rand':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            # elif config.sparse_mode == 'sfrl':
+            #     self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'nosp':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
             elif config.sparse_mode == 'bcrz':
@@ -317,6 +323,26 @@ class BertSelfAttention(nn.Module):
             self.value = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
             self.mm1 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
             self.mm2 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1':
+            self.query = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.key = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.value = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm1 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm2 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2':
+            self.query = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.key = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.value = cl.OurLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm1 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm2 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'sfrl':
+            self.query = cl.OurLinearWithShiftedRelu(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.key = cl.OurLinearWithShiftedRelu(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.value = cl.OurLinearWithShiftedRelu(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            # self.mm1 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            # self.mm2 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm1 = torch.matmul
+            self.mm2 = torch.matmul
         elif config.sparse_mode == 'bkrz': # 暂时其他的norm、softmax都没实现backrazor的写法.
             self.query = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act)
             self.key = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
@@ -344,6 +370,10 @@ class BertSelfAttention(nn.Module):
         if config.sparse_mode == 'norm' and config.is_sparse_softmax:
             self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'vrce' and config.is_sparse_softmax:
+            self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1' and config.is_sparse_softmax:
+            self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2' and config.is_sparse_softmax:
             self.softmax_mm2 = cl.OurSoftmaxMatMul(dim=-1, keep_frac=0.5, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'bkrz' and config.is_sparse_softmax:
             self.softmax_mm2 = br.BackRazorSoftmaxMatMul(dim=-1, keep_frac=0.5)
@@ -507,6 +537,12 @@ class BertSelfOutput(nn.Module):
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'vrce':
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1':
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2':
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'sfrl':
+            self.dense = cl.OurLinearWithShiftedRelu(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'nosp':
@@ -521,6 +557,12 @@ class BertSelfOutput(nn.Module):
                 self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'vrce':
                 self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'nml1':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'nml2':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            # elif config.sparse_mode == 'sfrl':
+            #     self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'rand':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
             elif config.sparse_mode == 'nosp':
@@ -598,6 +640,12 @@ class BertIntermediate(nn.Module):
             self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'vrce':
             self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1':
+            self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2':
+            self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'sfrl':
+            self.dense = cl.OurLinearWithShiftedRelu(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
             self.dense = cl.OurLinear(config.hidden_size, config.intermediate_size, keep_frac=config.keep_frac,linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'nosp':
@@ -634,6 +682,12 @@ class BertOutput(nn.Module):
             self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'vrce':
             self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1':
+            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2':
+            self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'sfrl':
+            self.dense = cl.OurLinearWithShiftedRelu(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
             self.dense = cl.OurLinear(config.intermediate_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+6, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'nosp':
@@ -649,6 +703,12 @@ class BertOutput(nn.Module):
                 self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'vrce':
                 self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'nml1':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            elif config.sparse_mode == 'nml2':
+                self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
+            # elif config.sparse_mode == 'sfrl':
+            #     self.LayerNorm = cl.OurLayerNorm(config.hidden_size, eps=config.layer_norm_eps, keep_frac=config.keep_frac, sparse_mode=config.sparse_mode)
             elif config.sparse_mode == 'rand':
                 self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
             elif config.sparse_mode == 'nosp':
@@ -857,6 +917,12 @@ class BertPooler(nn.Module):
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'vrce':
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1':
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2':
+            self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'sfrl':
+            self.dense = cl.OurLinearWithShiftedRelu(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
             self.dense = cl.OurLinear(config.hidden_size, config.hidden_size, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'nosp':
@@ -1206,8 +1272,14 @@ class BertForSequenceClassification(BertPreTrainedModel):
             self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'vrce':
             self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml1':
+            self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'nml2':
+            self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'rand':
             self.classifier = cl.OurLinear(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+        elif config.sparse_mode == 'sfrl':
+            self.classifier = cl.OurLinearWithShiftedRelu(config.hidden_size, config.num_labels, keep_frac=config.keep_frac, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'nosp':
             self.classifier = ns.OurNoSparseLinear(config.hidden_size, config.num_labels, linear_idx=12*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
         elif config.sparse_mode == 'bkrz':
