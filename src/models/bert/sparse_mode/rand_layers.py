@@ -72,11 +72,11 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         #     input2 = input2.transpose(-1,-2).contiguous() # 32, 12, 512, 64 -> 32, 12, 64, 512
         # ----
         if len(input2.shape) ==2:
-            input2 = input2.reshape(shape2[0], 1, shape2[1])
+            input2 = input2.reshape(shape2[0], shape2[1], 1)
         elif len(input2.shape) ==3:
-            input2 = input2.reshape(shape2[0], -1, shape2[-1])
+            input2 = input2.reshape(shape2[0], -1, shape2[-2])
         elif len(input2.shape) == 4:
-            input2 = input2.reshape(shape2[0]*shape2[1], -1, shape2[-1])
+            input2 = input2.reshape(shape2[0]*shape2[1], -1, shape2[-2])
         # -----
         # if len(input2.shape) ==2:
         #     input2 = input2.reshape(shape2[0], 1, shape2[1])
@@ -88,15 +88,16 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         print('invalid 1 shape : ',input1.shape)
         raise ValueError('input1 shape is not supported')
     shape1 = input1.shape
+
     # if len(input1.shape) > 2:
     #     input1 = input1.transpose(-1,-2).contiguous() # 32, 12, 512, 64 -> 32, 12, 64, 512
     # -----
     if len(input1.shape) ==2:
-        input1 = input1.reshape(shape1[0], 1, shape1[1])
+        input1 = input1.reshape(shape1[0], shape1[1], 1)
     elif len(input1.shape) ==3:
-        input1 = input1.reshape(shape1[0], -1, shape1[-1])  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
+        input1 = input1.reshape(shape1[0], -1, shape1[-2])  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
     elif len(input1.shape) == 4:
-        input1 = input1.reshape(shape1[0]*shape1[1], -1, shape1[-1])  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
+        input1 = input1.reshape(shape1[0]*shape1[1], -1, shape1[-2])  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
     # -----
     # if len(input1.shape) ==2:
     #     input1 = input1.reshape(shape1[0], 1, shape1[1])
