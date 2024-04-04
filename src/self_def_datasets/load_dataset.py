@@ -1,7 +1,7 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src')
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
 from config.training_config import train_config as TRAIN_CONFIG
 import torch
 import os
@@ -21,6 +21,6 @@ train_data = SelfDefDataset(small_train_dataset)
 eval_data = SelfDefDataset(small_eval_dataset)
 test_data = SelfDefDataset(small_test_dataset)
 print('load dataset done')
-torch.save(train_data, os.path.join(train_config.dataset_path, 'train_data.pt'))
-torch.save(eval_data, os.path.join(train_config.dataset_path, 'eval_data.pt'))
-torch.save(test_data, os.path.join(train_config.dataset_path, 'test_data.pt'))
+torch.save(train_data, os.path.join(train_config.dataset_path, f'train_data_{train_config.dataset_length}.pt'))
+torch.save(eval_data, os.path.join(train_config.dataset_path, f'eval_data_{train_config.dataset_length}.pt'))
+torch.save(test_data, os.path.join(train_config.dataset_path, f'test_data_{train_config.dataset_length}.pt'))

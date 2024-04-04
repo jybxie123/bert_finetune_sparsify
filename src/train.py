@@ -20,8 +20,10 @@ def main(**kwargs):
     train_config = TRAIN_CONFIG()
     update_config((train_config), **kwargs)
 
-    train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data.pt'))
-    eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data.pt'))
+    train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data_{train_config.dataset_length}.pt'))
+    eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data_{train_config.dataset_length}.pt'))
+    test_data = torch.load(os.path.join(train_config.dataset_path, f'test_data_{train_config.dataset_length}.pt'))
+
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         num_workers=train_config.num_workers_dataloader,
@@ -31,6 +33,13 @@ def main(**kwargs):
     if train_config.run_validation:
         eval_dataloader = torch.utils.data.DataLoader(
             eval_data,
+            num_workers=train_config.num_workers_dataloader,
+            # pin_memory=True,
+            batch_size=train_config.batch_size_val,
+            # **val_dl_kwargs,
+        )
+        test_dataloader = torch.utils.data.DataLoader(
+            test_data,
             num_workers=train_config.num_workers_dataloader,
             # pin_memory=True,
             batch_size=train_config.batch_size_val,
@@ -76,6 +85,7 @@ def main(**kwargs):
         model,
         train_dataloader,
         eval_dataloader,
+        test_dataloader,
         optimizer,
         scheduler,
         train_config.gradient_accumulation_steps,

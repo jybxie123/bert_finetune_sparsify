@@ -4,7 +4,7 @@ from datasets import load_dataset, load_metric, list_metrics
 
 import sys 
 # add transformer into path
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src')
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
 import transformers
 print(transformers.__file__)
 
@@ -43,7 +43,7 @@ wandb.init(
         'scheduler': "StepLR",
         'mixed_precision': train_config.mixed_precision,
     },
-    project='bert-sparsity-test',
+    project='bert-sparsity-test-2',
     entity='bert-sparsify',
     notes=socket.gethostname(),
     name=train_config.expr_name,
@@ -87,3 +87,4 @@ for ckpt_idx in range(train_config.num_epochs):
         accu = metrics.compute()
         print(accu)
         wandb.log({"test_accuracy": accu['accuracy']}, step=ckpt_idx)
+wandb.finish()    

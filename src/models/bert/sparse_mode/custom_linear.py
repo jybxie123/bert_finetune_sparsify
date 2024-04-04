@@ -4,7 +4,7 @@ import logging
 
 # from mesa import custom_quant
 # from mesa import native
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/models/bert')
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src/models/bert')
 import sparse_mode.rand_layers as rl
 from pdb import set_trace
 import torch
@@ -62,6 +62,41 @@ class sparseMatMul(torch.autograd.Function):
             bias_grad = grad_output.sum(0)
         del sparse_input, grad_output, weight, bias
         return input_grad, weight_grad, bias_grad, None, None, None, None
+
+class OurLinearWithShiftedRelu(torch.nn.Linear):
+    def __init__(self, *args, keep_frac=0.5, linear_idx = None, act_type = None, sparse_mode = 'sfrl', **kwargs):
+        super(OurLinearWithShiftedRelu, self).__init__(*args, **kwargs)
+        self.keep_frac = keep_frac
+        
+    def forward(self, input):
+        result = sparseMatMulWithShiftedRelu.apply(input, self.weight, self.bias, self.keep_frac)
+        return result
+
+
+class sparseMatMulWithShiftedRelu(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, weight, bias, keep_frac):
+        with torch.autograd.grad_mode.no_grad():
+            result = F.linear(input, weight, bias=bias)
+        shape, mask, sparse = rl.shiftedReluSparse(input=input, keep_frac=keep_frac)
+        ctx.save_for_backward(sparse, mask, shape, weight, bias)
+        return result
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        sparse, mask, shape, weight, bias = ctx.saved_tensors
+        if ctx.needs_input_grad[0]:
+            input_grad = grad_output.matmul(weight.to(dtype=grad_output.dtype)) #这里这俩都是dense的
+        if ctx.needs_input_grad[1]:
+            grad_output = grad_output.float()
+            sparse = sparse.float()
+            input = rl.unsparsify(shape, mask, sparse)
+            weight_grad = grad_output.transpose(-2, -1).matmul(input.to(dtype=grad_output.dtype)) # bmm
+        if bias is not None and ctx.needs_input_grad[2]:
+            bias_grad = grad_output.sum(0)
+        del sparse, grad_output, weight, bias, input, mask, shape
+        return input_grad, weight_grad, bias_grad, None, None, None, None
+
 
 class OurMatMul(nn.Module):
     def __init__(self, args=None, keep_frac=0.5, linear_idx = None, act_type = None, sparse_mode = 'norm'):
