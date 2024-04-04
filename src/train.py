@@ -22,14 +22,12 @@ def main(**kwargs):
     train_config = TRAIN_CONFIG()
     update_config((train_config), **kwargs)
 
-    train_data = torch.load(os.path.join(train_config.dataset_path, 'train_data.pt'))
-    eval_data = torch.load(os.path.join(train_config.dataset_path, 'eval_data.pt'))
+    train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data_{train_config.dataset_length}.pt'))
+    eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data_{train_config.dataset_length}.pt'))
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         num_workers=train_config.num_workers_dataloader,
         batch_size=train_config.batch_size_training,
-        # pin_memory=True,
-        # **train_dl_kwargs,
     )
 
     if train_config.run_validation:
@@ -37,7 +35,7 @@ def main(**kwargs):
             eval_data,
             num_workers=train_config.num_workers_dataloader,
             # pin_memory=True,
-            batch_size=train_config.val_batch_size,
+            batch_size=train_config.batch_size_val,
             # **val_dl_kwargs,
         )
 
@@ -57,9 +55,15 @@ def main(**kwargs):
         ckpt = torch.load(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
     else:
-        model = BertForSequenceClassification.from_pretrained(train_config.model_name, sparse_mode = train_config.mode, is_sparse_softmax = train_config.is_sparse_softmax, is_sparse_layer_norm = train_config.is_sparse_layer_norm, num_labels=5)
+        model = BertForSequenceClassification.from_pretrained(
+            train_config.model_name, 
+            sparse_mode = train_config.mode, 
+            keep_frac = train_config.keep_frac, 
+            is_sparse_softmax = train_config.is_sparse_softmax, 
+            is_sparse_layer_norm = train_config.is_sparse_layer_norm, 
+            num_labels=5)
     model.to(device)
-    metric = evaluate.load("accuracy")
+    # metric = evaluate.load("accuracy")
     print(next(model.parameters()).device)
 
     optimizer = optim.AdamW(

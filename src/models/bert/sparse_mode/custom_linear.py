@@ -17,24 +17,16 @@ class OurLinear(torch.nn.Linear):
     def __init__(self, *args, keep_frac=0.5, linear_idx = None, act_type = None, sparse_mode = 'norm', **kwargs):
         super(OurLinear, self).__init__(*args, **kwargs)
         self.keep_frac = keep_frac
-        self.step_idx = 0
-        self.linear_idx = linear_idx
-        self.act_type = act_type
+        # self.step_idx = 0
+        # self.linear_idx = linear_idx
+        # self.act_type = act_type
         self.sparse_mode = sparse_mode
-
-    def forward(self, input, retain=False, skip_rand=False):
-        if not retain:
-            self.random_seed = torch.randint(low=10000000000, high=99999999999, size=(1,))
-
-        if skip_rand:
-            keep_frac = 1.0
-        else:
-            keep_frac = self.keep_frac
-
-        result = sparseMatMul.apply(input, self.weight, self.bias, keep_frac,self.sparse_mode)
+        
+    def forward(self, input):
+        result = sparseMatMul.apply(input, self.weight, self.bias, self.keep_frac, self.sparse_mode)
         # cal_zero_ratio(result, self.linear_idx, self.step_idx, self.act_type)
         # print('Ourlinear step idx + 1')
-        self.step_idx += 1
+        # self.step_idx += 1
         return result
 
 # def cal_zero_ratio(layer_output, layer_idx, iteration, act_type):
@@ -49,11 +41,12 @@ class OurLinear(torch.nn.Linear):
 class sparseMatMul(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, weight, bias, keep_frac, sparse_mode):
+        with torch.autograd.grad_mode.no_grad():
+            result = F.linear(input, weight, bias=bias)
         sparse_index = rl.get_batch_score(input, keep_frac = keep_frac, sparse_mode = sparse_mode)
         sparse_input = rl.get_sparse_input(input, sparse_index)
         ctx.save_for_backward(sparse_input.to_sparse(), weight, bias)
-        with torch.autograd.grad_mode.no_grad():
-            return F.linear(input, weight, bias=bias)
+        return result
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -67,6 +60,7 @@ class sparseMatMul(torch.autograd.Function):
             weight_grad = grad_output.transpose(-2, -1).matmul(input.to(dtype=grad_output.dtype)) # bmm
         if bias is not None and ctx.needs_input_grad[2]:
             bias_grad = grad_output.sum(0)
+        del sparse_input, grad_output, weight, bias
         return input_grad, weight_grad, bias_grad, None, None, None, None
 
 class OurMatMul(nn.Module):
@@ -74,9 +68,9 @@ class OurMatMul(nn.Module):
         super(OurMatMul, self).__init__()
         self.keep_frac = keep_frac
         self.sparse_mode = sparse_mode
-        self.step_idx = 0
-        self.linear_idx = linear_idx
-        self.act_type = act_type
+        # self.step_idx = 0
+        # self.linear_idx = linear_idx
+        # self.act_type = act_type
 
     def forward(self, x1, x2):
         # print('Our sparse matmul')
@@ -90,12 +84,13 @@ class doubleSparseMatMul(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input1, to_matmul_input2, keep_frac, sparse_mode):
         input2 = to_matmul_input2.transpose(-2, -1)
+        with torch.autograd.grad_mode.no_grad():
+            output = input1.matmul(to_matmul_input2)
         gather_index = rl.get_batch_score(input1, input2, keep_frac, sparse_mode=sparse_mode)
         sparse_input1 = rl.get_sparse_input(input1, gather_index)
         sparse_input2 = rl.get_sparse_input(input2, gather_index)
         ctx.save_for_backward(sparse_input1.to_sparse(), sparse_input2.to_sparse())
-        with torch.autograd.grad_mode.no_grad():
-            output = input1.matmul(to_matmul_input2)
+        del input1, input2, gather_index, sparse_input1, sparse_input2, to_matmul_input2
         return output
 
     @staticmethod # backward很慢。
@@ -110,6 +105,7 @@ class doubleSparseMatMul(torch.autograd.Function):
         if ctx.needs_input_grad[1]:
             # grad_input2 = torch.sparse.mm(sparse_input1.transpose(-2, -1).to(dtype=grad_output.dtype), grad_output)
             grad_input2 = input1.transpose(-2, -1).to(dtype=grad_output.dtype).matmul(grad_output)
+        # del grad_output, input1, input2, sparse_input1, sparse_input2
         return grad_input1, grad_input2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None
 
 
@@ -143,6 +139,7 @@ class sparse_layer_norm(torch.autograd.Function):
             ctx.layer_norm_parameters =  input_mean, inputivar, normalized_shape # 传递需要norm的维度
             ctx.save_for_backward(sparse_input.to_sparse(), weight)
             out = torch.layer_norm(input, normalized_shape, weight, bias, eps)
+            del input, gather_index, sparse_input, input_mean, input_var, inputivar, weight, bias
         return out
     # 这里试了超级久，最后发现backward实际的做法并不能用在这种情景下。我们的forward用的是另一个向量，因此input没办法计算。
     @staticmethod
@@ -158,6 +155,7 @@ class sparse_layer_norm(torch.autograd.Function):
         output_mask = [ctx.needs_input_grad[0], ctx.needs_input_grad[2], ctx.needs_input_grad[3]]
         grad_input, grad_weight, grad_bias = layernorm_backward(grad_output, (inputmu, inputivar, weight, D), output_mask)
         ctx.layer_norm_parameters = None
+        del sparse_input, ori_input, input_mean, inputivar, input, grad_output, inputmu, D, total_dim, weight
         return grad_input, None, grad_weight, grad_bias, None, None, None, None, None, None, None, None, None, None, None
 
 def layernorm_backward(dout, cache, output_mask):
