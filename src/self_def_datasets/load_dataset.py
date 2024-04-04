@@ -1,7 +1,7 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
+sys.path.append('/home/runtao/DL_Team_Proj/bert_finetune_sparsify/src')
 from config.training_config import train_config as TRAIN_CONFIG
 import torch
 import os

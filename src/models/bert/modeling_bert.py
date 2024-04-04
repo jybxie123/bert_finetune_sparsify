@@ -52,7 +52,7 @@ from transformers.models.bert.configuration_bert import BertConfig
 from transformers.models.auto.modeling_auto import AutoModelForSequenceClassification
 from transformers.models.auto.configuration_auto import AutoConfig
 import torch.nn.functional as F
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src/models/bert')
+sys.path.append('/home/runtao/DL_Team_Proj/bert_finetune_sparsify/src/models/bert')
 from trans_utils.activations import ACT2FN
 from trans_utils.modeling_utils import PreTrainedModel
 from sparse_mode import custom_linear as cl
