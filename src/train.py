@@ -1,14 +1,12 @@
 # training dataset
 import os
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src')
+sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
 from config.training_config import train_config as TRAIN_CONFIG
 import self_def_datasets.custom_dataset as custom_dataset
 # add transformer into path
 from transformers import AutoConfig
 from models.bert.modeling_bert import BertForSequenceClassification
-# from transformers import BertForSequenceClassification
-# from transformers import AutoModelForSequenceClassification
 import evaluate
 import torch
 from torch.optim.lr_scheduler import StepLR
@@ -22,8 +20,8 @@ def main(**kwargs):
     train_config = TRAIN_CONFIG()
     update_config((train_config), **kwargs)
 
-    train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data_{train_config.dataset_length}.pt'))
-    eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data_{train_config.dataset_length}.pt'))
+    train_data = torch.load(os.path.join(train_config.dataset_path, f'train_data.pt'))
+    eval_data = torch.load(os.path.join(train_config.dataset_path, f'eval_data.pt'))
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         num_workers=train_config.num_workers_dataloader,
@@ -71,10 +69,6 @@ def main(**kwargs):
         lr=train_config.lr,
         weight_decay=train_config.weight_decay,
     )
-    # optimizer = optim.SparseAdam(
-    #     model.parameters(),
-    #     lr=train_config.lr,
-    # )
 
     scheduler = StepLR(optimizer, step_size=1, gamma=train_config.gamma)
     # Start the training process
