@@ -26,7 +26,7 @@ keep_frac: float=0.5 # 希望保留的数据占比
 is_sparse_softmax = False # 是否对softmax线性层做稀疏
 is_sparse_layer_norm = False # 是否对layernorm线性层做稀疏
 dataset_path: str = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/src/self_def_datasets" # 数据集位置 
-expr_name: str = 'bert_yelp_relu_20000_all_sparsity_0_norm_no_st_no_ln_inf' # 实验名称，用于区别不同runs结果。请注意不要使用已有的实验名
+expr_name: str = 'bert_yelp_relu_20000_all_sparsity_0_norm_no_st_no_ln_inf' # 实验名称，用于区别不同runs结果，在wandb中可见。请注意不要使用已有的实验名
 ckpt_path: str="/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # 模型微调后的保存位置
 load_ckpt_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/checkpoint" # 如果从本地导入模型，导入的路径 
 log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs" # 实验过程中保留的性能记录位置。这些是重要的实验评估数据
@@ -35,13 +35,15 @@ log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs" # 实验过�
 ## Training
 Before you run your code, edit your training_config to make sure it runs as you think.
 A good example:
+Here we use 20000 training data
 ```
 ## load your dataset into your dataset folder
 python src/self_def_dataset/load_dataset.py
-## finetune
-# find your available gpu index
-nvidia-smi
-CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX, SPLIT BY ','> python  <YOUR REPO PATH>/src/train.py
+```
+Finetune: find your available gpu index
+```
+nvidia-smi # select your gpu id, only one is enough.
+CUDA_VISIBLE_DEVICES=0 python  <YOUR REPO PATH>/src/train.py
 ```
 If you need to edit your config, please check the file : <YOUR REPO PATH>/src/config/training_config.py 
 
@@ -52,7 +54,6 @@ Testing is quite simple, just go to the main folder, and run the following scrip
 cd src
 ## if you need to specialise your gpu, use this method: CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX>
 python test.py
-## test.py is outdated, repairing
 ```
 
 
