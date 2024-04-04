@@ -1,0 +1,8 @@
+===================Epoch 1: train_accu=0.53725=================
+Time taken for epoch 1 is 818.4469667989997
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 9 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 2 GB
+==============================================epoch end=============================================

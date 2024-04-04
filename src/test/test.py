@@ -4,7 +4,7 @@ from datasets import load_dataset, load_metric, list_metrics
 
 import sys 
 # add transformer into path
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
+sys.path.append('/home/runtao/DL_Team_Proj/bert_finetune_sparsify/src')
 import transformers
 print(transformers.__file__)
 
@@ -43,8 +43,8 @@ wandb.init(
         'scheduler': "StepLR",
         'mixed_precision': train_config.mixed_precision,
     },
-    project='bert-sparsity-test',
-    entity='backward-sparsify',
+    project='DL_Team_Proj',
+    entity='ntu-msds-runtao',
     notes=socket.gethostname(),
     name=train_config.expr_name,
     job_type="test",
