@@ -9,7 +9,7 @@ class train_config:
     model_type: str= 'pretrained' # pretrained' # gelu to relu
     hidden_act: str = 'relu' # 'relu' 'relu_inplace'
     model_name: str="bert-base-cased"
-    mode = 'nml1' # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2', 'sfrl'] sfrl shifted relu
+    mode = 'nosp' # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2', 'sfrl'] sfrl shifted relu
     keep_frac: float=0.1
     run_validation: bool=True
     batch_size_training: int=16
@@ -19,7 +19,7 @@ class train_config:
     gradient_accumulation_steps: int=1
     gradient_clipping: bool = False
     gradient_clipping_threshold: float = 1.0
-    num_epochs: int=10
+    num_epochs: int=1
     num_workers_dataloader: int=4
     lr: float=5e-5
     weight_decay: float=0.01

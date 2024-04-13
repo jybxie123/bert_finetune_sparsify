@@ -9,3 +9,5 @@ checkpoint_bak/
 wandb/
 *__pycache__
 
+logs/
+requirements.txt

@@ -79,24 +79,24 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
     test_accu = []
 
     # wandb
-    # wandb.init(
-    #     config={
-    #         'learning_rate': train_config.lr,
-    #         'batch_size': train_config.batch_size_training,
-    #         'num_epochs': train_config.num_epochs,
-    #         'gradient_accumulation_steps': gradient_accumulation_steps,
-    #         'dataset': train_config.dataset_name,
-    #         'model': train_config.model_name,
-    #         'scheduler': "StepLR",
-    #         'mixed_precision': train_config.mixed_precision,
-    #     },
-    #     project='bert-sparsity-2',
-    #     entity='bert-sparsify',
-    #     notes=socket.gethostname(),
-    #     name=train_config.expr_name,
-    #     job_type="training",
-    #     reinit=True
-    #     )
+    wandb.init(
+        config={
+            'learning_rate': train_config.lr,
+            'batch_size': train_config.batch_size_training,
+            'num_epochs': train_config.num_epochs,
+            'gradient_accumulation_steps': gradient_accumulation_steps,
+            'dataset': train_config.dataset_name,
+            'model': train_config.model_name,
+            'scheduler': "StepLR",
+            'mixed_precision': train_config.mixed_precision,
+        },
+        project='DL_Team_Proj-graph-memory',
+        entity='ntu-msds-runtao',
+        notes=socket.gethostname(),
+        name=train_config.expr_name,
+        job_type="training",
+        reinit=True
+        )
 
     if train_config.save_metrics:
         metrics_filename = f"{train_config.output_dir}/{train_config.expr_name}/metrics_data-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
@@ -122,6 +122,7 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
             total_loss = 0.0
             total_length = len(train_dataloader)//gradient_accumulation_steps
             pbar = tqdm(colour="blue", desc=f"Training Epoch: {epoch+1}", total=total_length, dynamic_ncols=True)
+            total_gradient_memory_usage = 0
             for step, batch in enumerate(train_dataloader):
                 for key in batch.keys():
                     batch[key] = batch[key].to('cuda:0') #  101, 102 is start and end token
@@ -146,21 +147,32 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
                     train_step_loss.append(loss.detach().float().item())
                     train_step_perplexity.append(float(torch.exp(loss.detach().float())))
                 total_loss += loss.detach().float()
-                # wandb.watch(model, log="gradients")
-                # torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
-                # memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
+                wandb.watch(model, log="gradients")
+                torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
+                torch.cuda.empty_cache()
+                memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
                 # 这里可能没清干净，变成zero了。不是浮点数了。
-                loss.backward() # retain_graph=True keep住前项的内容。peek mem以及差值memory
-                # torch.cuda.synchronize()
-                # memory_usage_after = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
-                # gradient_memory_usage = memory_usage_after - memory_usage_before 
-                # total_gradient_memory_usage += gradient_memory_usage
-                # avg_gradient_memory_usage = total_gradient_memory_usage / (step + 1)
-                # wandb.log({"Before Memory Usage (GB)": memory_usage_before, 
-                #            "After Memory Usage (GB)": memory_usage_after, 
-                #            "Gradient Memory Usage (GB)": gradient_memory_usage, 
-                #            "Avg Gradient Memory Usage": avg_gradient_memory_usage},
-                #            step=step+epoch*total_length)
+                # loss.backward()
+                loss.backward(retain_graph=True) # retain_graph=True keep住前项的内容。peek mem以及差值memory
+                torch.cuda.synchronize()
+                memory_usage_after = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
+                gradient_memory_usage = memory_usage_after - memory_usage_before 
+                total_gradient_memory_usage += gradient_memory_usage
+                avg_gradient_memory_usage = total_gradient_memory_usage / (step + 1)
+                # temp = {"Before Memory Usage (GB)": memory_usage_before, 
+                #         "After Memory Usage (GB)": memory_usage_after, 
+                #         "Gradient Memory Usage (GB)": gradient_memory_usage, 
+                #         "Avg Gradient Memory Usage": avg_gradient_memory_usage}
+                # for k, v in temp.items():
+                #     print(k, v)
+                # input()
+                torch.cuda.empty_cache()
+                loss.backward() # recompute the gradiants but free memory for the graph
+                wandb.log({"Before Memory Usage (GB)": memory_usage_before, 
+                           "After Memory Usage (GB)": memory_usage_after, 
+                           "Gradient Memory Usage (GB)": gradient_memory_usage, 
+                           "Avg Gradient Memory Usage": avg_gradient_memory_usage},
+                           step=step+epoch*total_length)
 
                 if (step + 1) % gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
                     if train_config.gradient_clipping and train_config.gradient_clipping_threshold > 0.0:
@@ -174,7 +186,7 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
                 # log_memory_usage(step)
             pbar.close()
             
-        # wandb.log({"loss": loss.item()})
+        wandb.log({"loss": loss.item()})
         epoch_end_time = time.perf_counter()-epoch_start_time
         epoch_times.append(epoch_end_time)
         train_epoch_loss = total_loss / len(train_dataloader)
@@ -184,7 +196,7 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
         train_loss.append(float(train_epoch_loss))
         accu = metrics.compute()['accuracy']
         train_accu.append(accu)
-        # wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
+        wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
         with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
             f.write(f"===================Epoch {epoch+1}: train_accu={accu}=================\n")
             f.write(f"Time taken for epoch {epoch+1} is {epoch_end_time}\n")
@@ -234,7 +246,7 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
         if train_config.save_metrics:
             save_to_json(metrics_filename, train_step_loss, train_loss, train_step_perplexity, train_prep, train_accu, val_step_loss, val_loss, val_step_perplexity, val_prep, val_accu)
 
-    # wandb.finish()
+    wandb.finish()
     avg_epoch_time = sum(epoch_times)/ len(epoch_times)
     avg_checkpoint_time = sum(checkpoint_times)/ len(checkpoint_times) if len(checkpoint_times) > 0 else 0
     avg_train_prep = sum(train_prep)/len(train_prep)
@@ -279,23 +291,23 @@ def evaluation(model,train_config, eval_dataloader, epoch, type="eval"):
     Returns: eval_ppl, eval_epoch_loss
     """
     # wandb
-    wandb.init(
-        config={
-            'learning_rate': train_config.lr,
-            'batch_size': train_config.batch_size_training,
-            'num_epochs': train_config.num_epochs,
-            'dataset': train_config.dataset_name,
-            'model': train_config.model_name,
-            'scheduler': "StepLR",
-            'mixed_precision': train_config.mixed_precision,
-        },
-        project='DL_Team_Proj-test-during-train',
-        entity='ntu-msds-runtao',
-        notes=socket.gethostname(),
-        name=train_config.expr_name,
-        job_type="test",
-        reinit=True
-        )
+    # wandb.init(
+    #     config={
+    #         'learning_rate': train_config.lr,
+    #         'batch_size': train_config.batch_size_training,
+    #         'num_epochs': train_config.num_epochs,
+    #         'dataset': train_config.dataset_name,
+    #         'model': train_config.model_name,
+    #         'scheduler': "StepLR",
+    #         'mixed_precision': train_config.mixed_precision,
+    #     },
+    #     project='DL_Team_Proj-test-during-train',
+    #     entity='ntu-msds-runtao',
+    #     notes=socket.gethostname(),
+    #     name=train_config.expr_name,
+    #     job_type="test",
+    #     reinit=True
+    #     )
     model.eval()
     eval_preds = []
     val_step_loss = []
@@ -325,8 +337,8 @@ def evaluation(model,train_config, eval_dataloader, epoch, type="eval"):
             #     tokenizer.batch_decode(preds.detach().cpu().numpy(), skip_special_tokens=True)
             # )
     val_accu = metrics.compute()['accuracy']
-    if type == "test":
-        wandb.log({"test_accuracy": val_accu}, step=epoch)
+    # if type == "test":
+    #     wandb.log({"test_accuracy": val_accu}, step=epoch)
     # If there's more than one CUDA device, reduce evaluation loss across all devices
     if torch.cuda.device_count() > 1 and train_config.enable_fsdp:
         dist.all_reduce(eval_loss, op=dist.ReduceOp.SUM)
@@ -335,7 +347,7 @@ def evaluation(model,train_config, eval_dataloader, epoch, type="eval"):
     eval_ppl = torch.exp(eval_epoch_loss)
     # Print evaluation metrics
     print(f" {eval_ppl=} {eval_epoch_loss=}")
-    wandb.finish()
+    # wandb.finish()
     return eval_ppl, eval_epoch_loss, val_step_loss, val_step_perplexity, val_accu
 
 
