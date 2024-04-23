@@ -147,31 +147,32 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
                     train_step_loss.append(loss.detach().float().item())
                     train_step_perplexity.append(float(torch.exp(loss.detach().float())))
                 total_loss += loss.detach().float()
-                wandb.watch(model, log="gradients")
-                torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
+                # wandb.watch(model, log="gradients")
+                # 做完forward, graph应该已保存
+                
+                # 这里可能没清干净，变成zero了。不是浮点数了。
+                # loss.backward(retain_graph=True) # retain_graph=True (gradient+graph) keep住前项的内容。peek mem以及差值memory
+                torch.cuda.synchronize()
                 torch.cuda.empty_cache()
                 memory_usage_before = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
-                # 这里可能没清干净，变成zero了。不是浮点数了。
-                # loss.backward()
-                loss.backward(retain_graph=True) # retain_graph=True keep住前项的内容。peek mem以及差值memory
-                torch.cuda.synchronize()
+                loss.backward() # (gradient)recompute the gradients but free memory for the graph
+                torch.cuda.synchronize()  # 确保所有之前的CUDA操作已完成, 这里可以清理一下内存。cuda.empty_cache()
+                torch.cuda.empty_cache()
                 memory_usage_after = torch.cuda.memory_allocated() / (1024 ** 3) # 转换为GB
-                gradient_memory_usage = memory_usage_after - memory_usage_before 
+                gradient_memory_usage = memory_usage_before - memory_usage_after 
                 total_gradient_memory_usage += gradient_memory_usage
                 avg_gradient_memory_usage = total_gradient_memory_usage / (step + 1)
                 # temp = {"Before Memory Usage (GB)": memory_usage_before, 
                 #         "After Memory Usage (GB)": memory_usage_after, 
-                #         "Gradient Memory Usage (GB)": gradient_memory_usage, 
-                #         "Avg Gradient Memory Usage": avg_gradient_memory_usage}
+                #         "Graph Minus Gradient Memory Usage (GB)": gradient_memory_usage, 
+                #         "Avg Graph Minus Gradient Memory Usage": avg_gradient_memory_usage}
                 # for k, v in temp.items():
                 #     print(k, v)
                 # input()
-                torch.cuda.empty_cache()
-                loss.backward() # recompute the gradiants but free memory for the graph
                 wandb.log({"Before Memory Usage (GB)": memory_usage_before, 
                            "After Memory Usage (GB)": memory_usage_after, 
-                           "Gradient Memory Usage (GB)": gradient_memory_usage, 
-                           "Avg Gradient Memory Usage": avg_gradient_memory_usage},
+                           "Graph Minus Gradient Memory Usage (GB)": gradient_memory_usage, 
+                           "Avg Graph Minus Gradient Memory Usage": avg_gradient_memory_usage},
                            step=step+epoch*total_length)
 
                 if (step + 1) % gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
@@ -186,7 +187,7 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
                 # log_memory_usage(step)
             pbar.close()
             
-        wandb.log({"loss": loss.item()})
+        # wandb.log({"loss": loss.item()})
         epoch_end_time = time.perf_counter()-epoch_start_time
         epoch_times.append(epoch_end_time)
         train_epoch_loss = total_loss / len(train_dataloader)
@@ -196,7 +197,7 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
         train_loss.append(float(train_epoch_loss))
         accu = metrics.compute()['accuracy']
         train_accu.append(accu)
-        wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
+        # wandb.log({"train_perplexity": train_perplexity, "train_loss": train_epoch_loss, "train_accuracy": accu}, step=epoch+1)
         with open(f"{train_config.log_path}/{train_config.expr_name}.txt", "a") as f:
             f.write(f"===================Epoch {epoch+1}: train_accu={accu}=================\n")
             f.write(f"Time taken for epoch {epoch+1} is {epoch_end_time}\n")

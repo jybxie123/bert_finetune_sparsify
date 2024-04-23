@@ -27,7 +27,6 @@ DataProperty
 datasets
 dill
 evaluate
-fastjsonschema
 filelock
 fire
 flatbuffers
@@ -41,7 +40,6 @@ google-pasta
 grpcio
 h11
 h5py
-huggingface-hub
 humanfriendly
 humanize
 idna
@@ -55,7 +53,6 @@ joblib
 jsonlines
 jsonschema
 jsonschema-specifications
-jupyterlab-widgets
 keras
 kiwisolver
 libclang
@@ -69,28 +66,15 @@ mbstrdecoder
 mdurl
 Mesa
 Mesa-Viz-Tornado
-ml-dtypes
 mpmath
 multidict
 multiprocess
 multivolumefile
-mypy-extensions
 nbformat
 networkx
 nltk
 numexpr
 numpy
-nvidia-cublas-cu11
-nvidia-cuda-cupti-cu11
-nvidia-cuda-nvrtc-cu11
-nvidia-cuda-runtime-cu11
-nvidia-cudnn-cu11
-nvidia-cufft-cu11
-nvidia-curand-cu11
-nvidia-cusolver-cu11
-nvidia-cusparse-cu11
-nvidia-nccl-cu11
-nvidia-nvtx-cu11
 oauthlib
 opt-einsum
 optimum
@@ -114,7 +98,6 @@ pyparsing
 pyppmd
 pytablewriter
 python-slugify
-pytorch-triton
 pytz
 PyYAML
 pyzstd
@@ -126,7 +109,6 @@ requests-oauthlib
 responses
 rich
 rich-click
-rouge_score
 rpds-py
 rsa
 sacrebleu
@@ -146,7 +128,6 @@ tensorboard
 tensorboard-data-server
 tensorflow
 tensorflow-estimator
-tensorflow-io-gcs-filesystem
 termcolor
 text-unidecode
 texttable
@@ -154,7 +135,6 @@ threadpoolctl
 tokenize-rt
 tokenizers
 tomli
-torch
 tqdm
 tqdm-multiprocess
 traitlets
