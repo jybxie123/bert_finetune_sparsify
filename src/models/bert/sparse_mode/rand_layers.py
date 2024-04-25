@@ -3,14 +3,14 @@ import numpy as np
 
 # from config.training_config import train_config as TRAIN_CONFIG
 # train_config = TRAIN_CONFIG()
-# def profile_to_file():
-#     def decorator(func):
-#         def wrapper(*args, **kwargs):
-#             with open(f"{train_config.output_dir}/{train_config.expr_name}.txt", 'a') as f:
-#                 prof = profile(func, stream=f)
-#                 return prof(*args, **kwargs)
-#         return wrapper
-#     return decorator
+def profile_to_file():
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            with open(f"{train_config.output_dir}/{train_config.expr_name}.txt", 'a') as f:
+                prof = profile(func, stream=f)
+                return prof(*args, **kwargs)
+        return wrapper
+    return decorator
 
 # return sparse
 def get_sparse_input(input, gather_index):
@@ -21,38 +21,39 @@ def get_sparse_input(input, gather_index):
 
 # 改为就地操作，因此现在计算forward要在稀疏化之前
 # @profile_to_file()
-def get_selected_indices(input, indices):
-    input= input.clone()
+def get_selected_indices(ori_input, indices):
+    input= ori_input.clone()
     if len(input.shape) <= 1:
         raise ValueError('input shape is not supported')
-    elif len(input.shape) == 2:
-        # shape1 = input.shape
-        # input = input.clone()
-        # mask = torch.ones(input.shape[0], dtype=torch.bool)
-        # mask[indices] = False
-        # delete_index = mask.nonzero().squeeze()
-        # input[delete_index, :] = 0
+    elif len(input.shape) == 2: # no sparse for 2 dim
+        print('forward ----------- input shape : ',input.shape)
         return input
-    if len(input.shape) == 3:
+    elif len(input.shape) == 3 or len(input.shape) == 4:
         shape1 = input.shape
         input = input.reshape(-1, shape1[-2])
         mask = torch.ones(input.shape[0], dtype=torch.bool)
-        mask[indices] = False
-        delete_index = mask.nonzero().squeeze()
-        input[delete_index, :] = 0
+        mask[indices] = True
+        sparsed_input = input[indices, :]
         input = input.reshape(shape1)
-        return input
-    elif len(input.shape) == 4:
-        shape1 = input.shape
-        input = input.reshape(-1, shape1[-2])
-        mask = torch.ones(input.shape[0], dtype=torch.bool)
-        mask[indices] = False
-        delete_index = mask.nonzero().squeeze()
-        input[delete_index, :] = 0
-        input = input.reshape(shape1)
-        return input
+        print('forward ----------- input shape : ',input.shape)
+        print('forward ----------- sparsed_input shape : ',sparsed_input.shape)
+        print('forward ----------- mask shape : ',mask.shape)
+        return sparsed_input # 这里不需要恢复原始形状，在backward时恢复即可。
     else:
         raise ValueError('input shape is not supported')
+
+def get_dense_input(sparse_input, gather_index, shape):
+    print('sparse shape : ', sparse_input.shape)
+    if len(shape) == 2:
+        return sparse_input
+    elif len(shape) == 3 or len(shape) == 4:
+        new_input = torch.zeros(shape, dtype=torch.float, device=sparse_input.device)
+        print('ori shape : ',new_input.shape)
+        new_input = new_input.reshape(-1, shape[-2])
+        print('2 dim shape : ',new_input.shape)
+        new_input[gather_index, :] = sparse_input
+        new_input = new_input.reshape(shape)
+        return new_input
 
 # 对除了要筛选的维度以外的所有维度计算范数
 # @profile_to_file()
@@ -67,52 +68,28 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
             print('invalid 2 shape : ',input2.shape)
             raise ValueError('input2 shape is not supported')
         shape2 = input2.shape
-        # if len(input2.shape) > 2:
-        #     input2 = input2.transpose(-1,-2).contiguous() # 32, 12, 512, 64 -> 32, 12, 64, 512
-        # ----
         if len(input2.shape) ==2:
             input2 = input2.reshape(shape2[0], shape2[1], 1)
         elif len(input2.shape) ==3:
             input2 = input2.reshape(shape2[0], -1, shape2[-2])
         elif len(input2.shape) == 4:
             input2 = input2.reshape(shape2[0]*shape2[1], -1, shape2[-2])
-        # -----
-        # if len(input2.shape) ==2:
-        #     input2 = input2.reshape(shape2[0], 1, shape2[1])
-        # if len(input2.shape) == 4:
-        #     input2 = input2.reshape(shape2[0]*shape2[1], shape2[-2], shape2[-1])
-        # -----
         final_shape2 = input2.shape  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
     if len(input1.shape) <= 1:
         print('invalid 1 shape : ',input1.shape)
         raise ValueError('input1 shape is not supported')
     shape1 = input1.shape
-
-    # if len(input1.shape) > 2:
-    #     input1 = input1.transpose(-1,-2).contiguous() # 32, 12, 512, 64 -> 32, 12, 64, 512
-    # -----
     if len(input1.shape) ==2:
         input1 = input1.reshape(shape1[0], shape1[1], 1)
     elif len(input1.shape) ==3:
         input1 = input1.reshape(shape1[0], -1, shape1[-2])  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
     elif len(input1.shape) == 4:
         input1 = input1.reshape(shape1[0]*shape1[1], -1, shape1[-2])  # 32*12, xxx, 512, 64 -> 32*12, xxx * 64, 512
-    # -----
-    # if len(input1.shape) ==2:
-    #     input1 = input1.reshape(shape1[0], 1, shape1[1])
-    # if len(input1.shape) == 4:
-    #     input1 = input1.reshape(shape1[0]*shape1[1], shape1[-2], shape1[-1])
-    # -----
     final_shape1 = input1.shape
-    # print('final_shape1 : ',final_shape1)
-    # kept size of norm sparse\
     kept_feature_size = int(final_shape1[0]*final_shape1[1] * keep_frac + 0.999) # 全局稀疏的列数
-    # print('kept_feature_size : ',kept_feature_size)
     if sparse_mode == 'rand': # randAD
         full_indices = torch.randperm(final_shape1[0]*final_shape1[1]).to(input1.device)
-        # print('full_indices shape : ',full_indices.shape)
         gather_index = full_indices[:kept_feature_size]
-        # print('gather_index shape : ',gather_index.shape)
         result = gather_index.clone()  # 创建一个 gather_index 的副本
         del full_indices, gather_index, sparse_mode, final_shape1, kept_feature_size, keep_frac # 删除原始变量
         if input2 is not None:
@@ -153,7 +130,8 @@ def get_batch_score(input1, input2 = None,  keep_frac = 0.5, sparse_mode='norm')
         max_value = torch.max(score)
         score[...,0] = max_value+1 # 保证第一维一定不被稀疏
     score = score.reshape(-1)
-    gather_index = torch.argsort(score, dim=0, descending=True)[..., :kept_feature_size]
+    # print('score shape : ',score.shape)
+    gather_index = torch.argsort(score, dim=0, descending=True)[..., :kept_feature_size] # 降序排列，取前kept_feature_size个加以保留
     result = gather_index.reshape(-1)
     # print('result shape : ',result.shape)
     # print('input1 shape : ',input1.shape)
