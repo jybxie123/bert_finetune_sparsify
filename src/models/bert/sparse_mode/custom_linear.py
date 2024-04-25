@@ -43,9 +43,7 @@ class sparseMatMul(torch.autograd.Function):
         if ctx.needs_input_grad[1]:
             grad_output = grad_output.float()
             sparse_input = sparse_input.float()
-            print('before get dense : ', sparse_input.shape, sparse_index.shape, shape)
             input = rl.get_dense_input(sparse_input, sparse_index, shape)
-            print('why here: input', input.shape)
             weight_grad = grad_output.transpose(-2, -1).matmul(input.to(dtype=grad_output.dtype)) # bmm
         if bias is not None and ctx.needs_input_grad[2]:
             bias_grad = grad_output.sum(0)

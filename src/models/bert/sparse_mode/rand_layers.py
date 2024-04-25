@@ -26,7 +26,6 @@ def get_selected_indices(ori_input, indices):
     if len(input.shape) <= 1:
         raise ValueError('input shape is not supported')
     elif len(input.shape) == 2: # no sparse for 2 dim
-        print('forward ----------- input shape : ',input.shape)
         return input
     elif len(input.shape) == 3 or len(input.shape) == 4:
         shape1 = input.shape
@@ -35,22 +34,16 @@ def get_selected_indices(ori_input, indices):
         mask[indices] = True
         sparsed_input = input[indices, :]
         input = input.reshape(shape1)
-        print('forward ----------- input shape : ',input.shape)
-        print('forward ----------- sparsed_input shape : ',sparsed_input.shape)
-        print('forward ----------- mask shape : ',mask.shape)
         return sparsed_input # 这里不需要恢复原始形状，在backward时恢复即可。
     else:
         raise ValueError('input shape is not supported')
 
 def get_dense_input(sparse_input, gather_index, shape):
-    print('sparse shape : ', sparse_input.shape)
     if len(shape) == 2:
         return sparse_input
     elif len(shape) == 3 or len(shape) == 4:
         new_input = torch.zeros(shape, dtype=torch.float, device=sparse_input.device)
-        print('ori shape : ',new_input.shape)
         new_input = new_input.reshape(-1, shape[-2])
-        print('2 dim shape : ',new_input.shape)
         new_input[gather_index, :] = sparse_input
         new_input = new_input.reshape(shape)
         return new_input
