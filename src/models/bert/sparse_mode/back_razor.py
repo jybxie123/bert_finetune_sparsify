@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src/models/bert')
+sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src/models/bert')
 from sparse_mode import rand_layers as rl
 import torch
 import torch.nn.functional as F

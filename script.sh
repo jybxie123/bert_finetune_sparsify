@@ -6,3 +6,13 @@ python src/self_def_datasets/load_dataset.py
 CUDA_VISIBLE_DEVICES=0 python src/train.py
 
 # 测试模型 见readme。
+
+0 -> nosp
+1 -> norm
+2 -> nml1
+
+3 -> rand
+4 -> bkrz
+5 -> nml2
+
+

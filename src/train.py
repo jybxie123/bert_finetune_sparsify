@@ -1,12 +1,14 @@
 # training dataset
 import os
 import sys
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
+sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src')
 from config.training_config import train_config as TRAIN_CONFIG
 import self_def_datasets.custom_dataset as custom_dataset
 # add transformer into path
 from transformers import AutoConfig
 from models.bert.modeling_bert import BertForSequenceClassification
+from transformers import AutoConfig, AutoModelForSequenceClassification
+import transformers
 import evaluate
 import torch
 from torch.optim.lr_scheduler import StepLR
@@ -62,6 +64,9 @@ def main(**kwargs):
         ckpt = torch.load(f"{train_config.load_ckpt_path}/{train_config.expr_name}/bert-base-cased/bert-base-cased-{train_config.ckpt_idx}.pt")
         model.load_state_dict(ckpt['model_state_dict'])
     else:
+        origin_model = transformers.AutoModelForSequenceClassification.from_pretrained( # BertForSequenceClassification
+            train_config.model_name,
+            num_labels=5)
         model = BertForSequenceClassification.from_pretrained(
             train_config.model_name, 
             sparse_mode = train_config.mode, 
@@ -69,6 +74,8 @@ def main(**kwargs):
             is_sparse_softmax = train_config.is_sparse_softmax, 
             is_sparse_layer_norm = train_config.is_sparse_layer_norm, 
             num_labels=5)
+        model.load_state_dict(origin_model.state_dict(), strict=False)
+        del origin_model
     model.to(device)
     # metric = evaluate.load("accuracy")
     print(next(model.parameters()).device)

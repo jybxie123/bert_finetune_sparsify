@@ -1,0 +1,92 @@
+===================Epoch 1: train_accu=0.53745=================
+Time taken for epoch 1 is 1441.2317485290114
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 5 GB
+==============================================epoch end=============================================
+===================Epoch 1: train_accu=0.54195=================
+Time taken for epoch 1 is 1524.7068205529358
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 5 GB
+==============================================epoch end=============================================
+===================Epoch 2: train_accu=0.6365=================
+Time taken for epoch 2 is 1662.4708105870523
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 3: train_accu=0.7047=================
+Time taken for epoch 3 is 1450.2047540969215
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 4: train_accu=0.75845=================
+Time taken for epoch 4 is 1439.94211752899
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 5: train_accu=0.8065=================
+Time taken for epoch 5 is 1442.4701662231237
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 6: train_accu=0.84795=================
+Time taken for epoch 6 is 1445.2460919250734
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 7: train_accu=0.8787=================
+Time taken for epoch 7 is 1443.6521000531502
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 8: train_accu=0.9063=================
+Time taken for epoch 8 is 1444.5313525311649
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 9: train_accu=0.9194=================
+Time taken for epoch 9 is 1442.18987147999
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 10: train_accu=0.9344=================
+Time taken for epoch 10 is 1443.06038393802
+Max CUDA memory allocated was 9 GB
+Max CUDA memory reserved was 10 GB
+Peak active CUDA memory was 9 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+==========================================
+results are : 
+{'avg_train_prep': 1.7173371076583863, 'avg_train_loss': 0.5020034104585648, 'avg_eval_prep': 4.925025081634521, 'avg_eval_loss': 0.9284360408782959, 'avg_eval_accu': 0.57555, 'eval_accu': [0.57925, 0.59775, 0.58875, 0.565, 0.5465, 0.574, 0.57225, 0.579, 0.57525, 0.57775], 'avg_epoch_time': 1465.4999396892497, 'avg_checkpoint_time': 1.3391727395355701, 'avg_train_accu': 0.793035, 'train_accu': [0.53745, 0.6365, 0.7047, 0.75845, 0.8065, 0.84795, 0.8787, 0.9063, 0.9194, 0.9344]}
+=====================training stage=====================

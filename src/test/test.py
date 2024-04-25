@@ -4,7 +4,7 @@ from datasets import load_dataset, load_metric, list_metrics
 
 import sys 
 # add transformer into path
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src')
+sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src')
 import transformers
 print(transformers.__file__)
 

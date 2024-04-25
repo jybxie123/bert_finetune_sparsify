@@ -4,7 +4,7 @@ import logging
 
 # from mesa import custom_quant
 # from mesa import native
-sys.path.insert(0, '/disk3/Haonan/yanbo_random/ass_bert/bert_finetune_sparsify/src/models/bert')
+sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src/models/bert')
 import sparse_mode.rand_layers as rl
 from pdb import set_trace
 import torch
