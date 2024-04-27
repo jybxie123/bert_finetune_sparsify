@@ -52,7 +52,7 @@ class train_config:
     output_dir: str = (
         f"{root}/metrics"
     )
-    log_path = "{root}/logs"
+    log_path = f"{root}/logs"
     save_optimizer: bool = False
     save_metrics: bool = (
         False  # saves training metrics to a json file for later plotting
