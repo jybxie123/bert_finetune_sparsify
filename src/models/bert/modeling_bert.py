@@ -53,14 +53,14 @@ from transformers.models.auto.modeling_auto import AutoModelForSequenceClassific
 from transformers.models.auto.configuration_auto import AutoConfig
 import torch.nn.functional as F
 from memory_profiler import profile
-from trans_utils.activations import ACT2FN
-from trans_utils.modeling_utils import PreTrainedModel
+from src.models.bert.trans_utils.activations import ACT2FN
+from src.models.bert.trans_utils.modeling_utils import PreTrainedModel
 from src.models.bert.sparse_mode import custom_linear as cl
 from src.models.bert.sparse_mode import rand_layers as rl
 from src.models.bert.sparse_mode import back_razor as br
 from src.models.bert.sparse_mode import no_sparse_linear as ns
 
-from config.training_config import train_config as TRAIN_CONFIG
+from src.config.training_config import train_config as TRAIN_CONFIG
 train_config = TRAIN_CONFIG()
 def profile_to_file():
     def decorator(func):

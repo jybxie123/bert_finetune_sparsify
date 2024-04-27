@@ -9,8 +9,8 @@ class train_config:
     model_type: str = "pretrained"  # pretrained' # gelu to relu
     hidden_act: str = "relu"  # 'relu' 'relu_inplace'
     model_name: str = "bert-base-cased"
-    mode = "norm"  # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2', 'sfrl'] sfrl shifted relu
-    keep_frac: float = 0.1
+    mode = "nml1"  # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2', 'sfrl'] sfrl shifted relu
+    keep_frac: float = 0.5
     run_validation: bool = True
     batch_size_training: int = 16
     batch_size_val: int = 16
@@ -35,23 +35,24 @@ class train_config:
     save_model: bool = True
     is_sparse_softmax = False
     is_sparse_layer_norm = False
+    root = "/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify"
     dataset_path: str = (
-        "/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src/self_def_datasets"
+        f"{root}/src/self_def_datasets"
     )
     expr_name: str = (
         f"custom_{mode}_{dataset_name}_{dataset_length}_{hidden_act}_keep_frac_{keep_frac}_epoch_{num_epochs}__{is_sparse_softmax}_st_{is_sparse_layer_norm}_ln_1"  # _var_no_sm_no_weight' #_norm_no_sm_no_weight_no_double_matmul_add_mem_profiler' # # _norm_no_sm_no_weight
     )
     # expr_name: str = f'bert_yelp_{hidden_act}_{dataset_length}_10_custom_{mode}_{is_sparse_softmax}_st_{is_sparse_layer_norm}_ln_{keep_frac}_keep_frac_inf_norm_epoch_{num_epochs}' #_var_no_sm_no_weight' # _norm_no_sm_no_weight
     ckpt_path: str = (
-        "/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/checkpoint"  # will be used if using FSDP
+        f"{root}/checkpoint"  # will be used if using FSDP
     )
     load_ckpt_path = (
-        "/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/checkpoint"  # gelu
+        f"{root}/checkpoint"  # gelu
     )
     output_dir: str = (
-        "/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/metrics"
+        f"{root}/metrics"
     )
-    log_path = "/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/logs"
+    log_path = "{root}/logs"
     save_optimizer: bool = False
     save_metrics: bool = (
         False  # saves training metrics to a json file for later plotting
@@ -70,22 +71,3 @@ class train_config:
     peft_method: str = "lora"  # None , llama_adapter, prefix
     use_peft: bool = False
     use_pefted_model: str = None
-
-
-from dataclasses import dataclass
-from torch.distributed.fsdp import ShardingStrategy
-from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
-
-
-@dataclass
-class fsdp_config:
-    mixed_precision: bool = True
-    use_fp16: bool = False
-    sharding_strategy: ShardingStrategy = ShardingStrategy.FULL_SHARD
-    checkpoint_type: StateDictType = (
-        StateDictType.FULL_STATE_DICT
-    )  # SHARDED_STATE_DICT  # alternatively can use SHARDED_STATE_DICT save one file per rank, and can resize the world-size.
-    fsdp_activation_checkpointing: bool = False  # True
-    fsdp_cpu_offload: bool = False
-    pure_bf16: bool = False  # 太慢了，尝试提速
-    optimizer: str = "AdamW"
