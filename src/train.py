@@ -1,12 +1,10 @@
 # training dataset
 import os
-import sys
-sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src')
-from config.training_config import train_config as TRAIN_CONFIG
-import self_def_datasets.custom_dataset as custom_dataset
+from src.config.training_config import train_config as TRAIN_CONFIG
+import src.self_def_datasets.custom_dataset as custom_dataset
 # add transformer into path
 from transformers import AutoConfig
-from models.bert.modeling_bert import BertForSequenceClassification
+from src.models.bert.modeling_bert import BertForSequenceClassification
 from transformers import AutoConfig, AutoModelForSequenceClassification
 import transformers
 import evaluate
@@ -14,8 +12,8 @@ import torch
 from torch.optim.lr_scheduler import StepLR
 import torch.optim as optim
 import fire
-from utils.train_utils import train
-from utils.config_utils import update_config
+from src.utils.train_utils import train
+from src.utils.config_utils import update_config
 
 def main(**kwargs):
     # config and fsdp_config

@@ -34,12 +34,22 @@ log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs" # 实验过�
 
 ## Training
 Before you run your code, edit your training_config to make sure it runs as you think.
+Especially, update your root path in the training_config file.
 A good example:
+### load your dataset into your dataset folder
 Here we use 20000 training data
 ```
-## load your dataset into your dataset folder
 python src/self_def_dataset/load_dataset.py
 ```
+## install your environment with conda and pip
+```
+conda create -n norm_sparse python=3.10 -y
+conda activate norm_sparse
+
+pip install transformers, torch, 
+
+```
+
 Finetune: find your available gpu index
 ```
 nvidia-smi # select your gpu id, only one is enough.

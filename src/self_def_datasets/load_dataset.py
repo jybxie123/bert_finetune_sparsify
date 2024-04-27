@@ -1,11 +1,9 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer
-import sys
-sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src')
-from config.training_config import train_config as TRAIN_CONFIG
+from src.config.training_config import train_config as TRAIN_CONFIG
 import torch
 import os
-from self_def_datasets.custom_dataset import SelfDefDataset
+from src.self_def_datasets.custom_dataset import SelfDefDataset
 
 dataset = load_dataset("yelp_review_full")
 train_config = TRAIN_CONFIG()
