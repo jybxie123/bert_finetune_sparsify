@@ -1,0 +1,84 @@
+===================Epoch 1: train_accu=0.56595=================
+Time taken for epoch 1 is 1757.0340035189874
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 5 GB
+==============================================epoch end=============================================
+===================Epoch 2: train_accu=0.73315=================
+Time taken for epoch 2 is 1739.3514522120822
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 3: train_accu=0.8499=================
+Time taken for epoch 3 is 1740.9561891779304
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 4: train_accu=0.9109=================
+Time taken for epoch 4 is 1750.7545961320866
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 5: train_accu=0.95885=================
+Time taken for epoch 5 is 1778.7681086300872
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 6: train_accu=0.9773=================
+Time taken for epoch 6 is 1784.3780854661018
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 7: train_accu=0.98885=================
+Time taken for epoch 7 is 1795.0647340039723
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 8: train_accu=0.9933=================
+Time taken for epoch 8 is 1764.1952965320088
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 9: train_accu=0.9957=================
+Time taken for epoch 9 is 1763.7096599771176
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+===================Epoch 10: train_accu=0.9968=================
+Time taken for epoch 10 is 1746.4338031448424
+Max CUDA memory allocated was 7 GB
+Max CUDA memory reserved was 7 GB
+Peak active CUDA memory was 7 GB
+Cuda Malloc retires : 0
+CPU Total Peak Memory consumed during the train (max): 6 GB
+==============================================epoch end=============================================
+==========================================
+results are : 
+{'avg_train_prep': 1.3580893635749818, 'avg_train_loss': 0.2510119743645191, 'avg_eval_prep': 7.1270414113998415, 'avg_eval_loss': 0.9142261147499084, 'avg_eval_accu': 0.600325, 'eval_accu': [0.596, 0.58875, 0.55275, 0.607, 0.606, 0.61825, 0.60675, 0.6035, 0.61325, 0.611], 'avg_epoch_time': 1762.0645928795216, 'avg_checkpoint_time': 1.4098392865154892, 'avg_train_accu': 0.8970699999999999, 'train_accu': [0.56595, 0.73315, 0.8499, 0.9109, 0.95885, 0.9773, 0.98885, 0.9933, 0.9957, 0.9968]}
+=====================training stage=====================

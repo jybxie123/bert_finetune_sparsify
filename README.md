@@ -14,7 +14,15 @@ Go to the main folder, find the requirements.txt and run the following:
 ```
 pip install -r requirements.txt
 ```
-If it doesn't work, give me an issue.
+If it doesn't work, you can only install the packages you need like the following script:
+
+### install your environment with conda and pip
+```
+conda create -n norm_sparse python=3.10 -y
+conda activate norm_sparse
+pip install transformers torch torchvision torchaudio fire psutil evaluate wandb memory_profiler datasets scikit-learn
+
+```
 
 ## Config
 ```
@@ -34,16 +42,19 @@ log_path = "/disk3/Haonan/yanbo_random/bert_finetune_sparsify/logs" # 实验过�
 
 ## Training
 Before you run your code, edit your training_config to make sure it runs as you think.
+Especially, update your root path in the training_config file.
 A good example:
+### load your dataset into your dataset folder
 Here we use 20000 training data
 ```
-## load your dataset into your dataset folder
-python src/self_def_dataset/load_dataset.py
+python -m src.self_def_datasets.load_dataset
 ```
+
 Finetune: find your available gpu index
 ```
+# cd <YOUR REPO PATH>
 nvidia-smi # select your gpu id, only one is enough.
-CUDA_VISIBLE_DEVICES=0 python  <YOUR REPO PATH>/src/train.py
+CUDA_VISIBLE_DEVICES=0 python train.py
 ```
 If you need to edit your config, please check the file : <YOUR REPO PATH>/src/config/training_config.py 
 
@@ -53,7 +64,7 @@ Testing is quite simple, just go to the main folder, and run the following scrip
 ```
 cd src
 ## if you need to specialise your gpu, use this method: CUDA_VISIBLE_DEVICES=<YOUR GPU INDEX>
-python test.py
+python -m src.test.py
 ```
 
 

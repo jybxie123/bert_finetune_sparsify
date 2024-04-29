@@ -1,20 +1,13 @@
 # training dataset
 from datasets import load_dataset
 from datasets import load_dataset, load_metric, list_metrics
-
-import sys 
-# add transformer into path
-sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src')
-import transformers
-print(transformers.__file__)
-
-from models.bert.modeling_bert import BertForSequenceClassification
+from src.models.bert.modeling_bert import BertForSequenceClassification
 from transformers import AutoConfig
 import numpy as np
 import evaluate
 import os
 import torch
-from config.training_config import train_config as TRAIN_CONFIG
+from src.config.training_config import train_config as TRAIN_CONFIG
 from tqdm import tqdm
 import socket
 import wandb

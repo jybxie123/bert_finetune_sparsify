@@ -20,15 +20,15 @@ from transformers import LlamaTokenizer
 import json
 import numpy as np
 
-from utils.models_checkpointing.models_checkpointing import save_model_checkpoint, save_model_and_optimizer_sharded, save_optimizer_checkpoint
-from utils.models_checkpointing.mixed_precision import fpSixteen,bfSixteen
-from utils.models_checkpointing.wrapping import get_bert_wrapper
-from utils.memory_utils import MemoryTrace
+from src.utils.models_checkpointing.models_checkpointing import save_model_checkpoint, save_model_and_optimizer_sharded, save_optimizer_checkpoint
+from src.utils.models_checkpointing.mixed_precision import fpSixteen,bfSixteen
+from src.utils.models_checkpointing.wrapping import get_bert_wrapper
+from src.utils.memory_utils import MemoryTrace
 
 import wandb
 from memory_profiler import profile
 
-from config.training_config import train_config as TRAIN_CONFIG
+from src.config.training_config import train_config as TRAIN_CONFIG
 train_config = TRAIN_CONFIG()
 def profile_to_file():
     def decorator(func):

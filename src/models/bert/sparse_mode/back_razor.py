@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, '/home/bizon/yanbo_random/assi_bert/bert_finetune_sparsify/src/models/bert')
-from sparse_mode import rand_layers as rl
+from src.models.bert.sparse_mode import rand_layers as rl
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -76,8 +74,6 @@ class BackRazorMatMul(nn.Module):
         # print('Our sparse matmul')
         y = backRazorMatMul.apply(x1, x2, self.keep_frac)
         return y
-
-import time
 
 # new one
 class backRazorMatMul(torch.autograd.Function):
