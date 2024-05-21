@@ -9,8 +9,8 @@ class train_config:
     model_type: str = "pretrained"  # pretrained' # gelu to relu
     hidden_act: str = "relu"  # 'relu' 'relu_inplace'
     model_name: str = "bert-base-cased"
-    mode = "nml1"  # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2', 'sfrl'] sfrl shifted relu
-    keep_frac: float = 0.5
+    mode = "sfrl"  # ['nosp', 'rand', 'norm', 'bkrz', 'vrce', 'nml1', 'nml2', 'sfrl'] sfrl shifted relu
+    keep_frac: float = 0.1
     run_validation: bool = True
     batch_size_training: int = 16
     batch_size_val: int = 16

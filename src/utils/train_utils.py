@@ -127,15 +127,15 @@ def train(model, train_dataloader, eval_dataloader, test_dataloader, optimizer, 
                 for key in batch.keys():
                     batch[key] = batch[key].to('cuda:0') #  101, 102 is start and end token
 
-                # ===== run test ===== 
-                if step == int(len(train_dataloader)/2) or step == len(train_dataloader):
-                    test_ppl, test_epoch_loss, temp_test_loss, temp_step_perplexity, epoch_test_accu = evaluation(model, train_config, test_dataloader, epoch = epoch*2+2 if step ==total_length-1 else epoch*2+1, type="test")
-                    if test_epoch_loss < best_test_loss:
-                        best_test_loss = test_epoch_loss
-                        print(f"best eval loss on epoch {epoch+1} is {best_val_loss}")
-                    test_loss.append(float(best_test_loss))
-                    test_prep.append(float(test_ppl))
-                    test_accu.append(epoch_test_accu)
+                # # ===== run test ===== 
+                # if step == int(len(train_dataloader)/2) or step == len(train_dataloader): # it won't work
+                #     test_ppl, test_epoch_loss, temp_test_loss, temp_step_perplexity, epoch_test_accu = evaluation(model, train_config, test_dataloader, epoch = epoch*2+2 if step ==total_length-1 else epoch*2+1, type="test")
+                #     if test_epoch_loss < best_test_loss:
+                #         best_test_loss = test_epoch_loss
+                #         print(f"best eval loss on epoch {epoch+1} is {best_val_loss}")
+                #     test_loss.append(float(best_test_loss))
+                #     test_prep.append(float(test_ppl))
+                #     test_accu.append(epoch_test_accu)
                     
                 outputs = model(**batch)
                 loss = outputs.loss

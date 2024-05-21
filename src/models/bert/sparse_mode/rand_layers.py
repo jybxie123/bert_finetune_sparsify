@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from scipy.stats import norm
 
 # from config.training_config import train_config as TRAIN_CONFIG
 # train_config = TRAIN_CONFIG()
@@ -154,20 +155,54 @@ input原维度
 稀疏矩阵回头可以恢复为目标矩阵，但是这里需要再view为原shape才可以作乘法。
 '''
 
-def shiftedReluSparse(input, keep_frac):
+def shiftedReluSparsify(input, kept_frac, is_attn_sink=False):
     shape = input.shape
     shape = torch.tensor(shape)
-    input = input.reshape(-1)
-    max_value = torch.max(input)
-    # print('max_value : ',max_value)
-    min_value = torch.min(input)
-    # print('min_value : ',min_value)
-    threshold = min_value + (max_value - min_value) * (1-keep_frac)
-    # print('threshold : ',threshold)
+    ori_type = input.dtype
+    mean = input.mean()
+    std = input.std()
+    threshold = torch.tensor(norm.ppf(1-kept_frac)) * std + mean
+    while len(threshold.shape) < len(input.shape):
+        threshold = threshold.unsqueeze(-1)
     mask = input >= threshold
+    if is_attn_sink: # 保留头尾4个位置
+        mask[...,0:4] = True
+        mask[...,-4:] = True
+    input = input.reshape(-1)
+    mask = mask.reshape(-1)
     sparse = input[mask]
-    sparse = sparse.unsqueeze(0)
+    sparse = sparse.to(dtype=ori_type)
+    if mask.shape[0] % 8 != 0:
+        add_bits = 8 - (mask.shape[0] % 8)
+        mask = torch.cat([mask, torch.zeros(add_bits, dtype=mask.dtype, device=mask.device)], dim=0)
+        del add_bits
+    mask = compress_mask(mask)
+    del input, threshold
     return shape, mask, sparse
+    # return None, None, None
+
+def shiftedReluUnsparsify(shape, mask, sparse):
+    mask = uncompress_mask(mask)
+    shape = torch.Size(shape)
+    dense = torch.zeros(shape.numel(), device=sparse.device, dtype=sparse.dtype)
+    dense[mask[:shape.numel()]] = sparse
+    dense = dense.reshape(shape)
+    del mask, sparse, shape
+    return dense
+
+def compress_mask(mask):
+    mask = mask.reshape(-1, 8).to(dtype=torch.float32)
+    transform_mtrx = torch.tensor([1,2,4,8,16,32,64,128],dtype=torch.float32, device=mask.device).reshape(8,1)
+    compressed_mask = torch.matmul(mask, transform_mtrx)
+    compressed_mask = compressed_mask.round().to(dtype=torch.uint8)
+    del mask, transform_mtrx
+    return compressed_mask
+
+def uncompress_mask(compressed_mask):
+    binary_repr = ((compressed_mask.unsqueeze(-1) & (1 << torch.arange(8,device=compressed_mask.device))) != 0)
+    binary_repr = binary_repr.to(dtype=torch.bool).reshape(-1)
+    del compressed_mask
+    return binary_repr
 
 # ================== back razor(not used) ==================
 from pdb import set_trace
