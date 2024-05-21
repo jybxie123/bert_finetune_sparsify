@@ -61,7 +61,7 @@ class sparseMatMulWithShiftedRelu(torch.autograd.Function):
     def forward(ctx, input, weight, bias, keep_frac):
         with torch.autograd.grad_mode.no_grad():
             result = F.linear(input, weight, bias=bias)
-            shape, mask, sparse = rl.shiftedReluSparse(input=input, keep_frac=keep_frac)
+            shape, mask, sparse = rl.shiftedReluSparsify(input=input, keep_frac=keep_frac)
             ctx.save_for_backward(sparse, mask, shape, weight, bias)
         return result
 
@@ -128,6 +128,45 @@ class doubleSparseMatMul(torch.autograd.Function):
         return grad_input1, grad_input2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None
 
 
+class OurMatMulWithShiftedRelu(nn.Module):
+    def __init__(self, args=None, keep_frac=0.5, linear_idx = None, act_type = None, sparse_mode = 'norm'):
+        super(OurMatMul, self).__init__()
+        self.keep_frac = keep_frac
+        self.sparse_mode = sparse_mode
+        # self.step_idx = 0
+        # self.linear_idx = linear_idx
+        # self.act_type = act_type
+
+    def forward(self, x1, x2):
+        # print('Our sparse matmul')
+        y = sfrlDoubleMatMul.apply(x1, x2, self.keep_frac, self.sparse_mode)
+        return y
+
+
+class sfrlDoubleMatMul(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input1, to_matmul_input2, keep_frac):
+        input2 = to_matmul_input2.transpose(-2, -1)
+        with torch.autograd.grad_mode.no_grad():
+            output = input1.matmul(to_matmul_input2)
+            shape_1, mask_1, sparse_1 = rl.shiftedReluSparsify(input=input1, keep_frac=keep_frac)
+            shape_2, mask_2, sparse_2 = rl.shiftedReluSparsify(input=input2, keep_frac=keep_frac)
+            ctx.save_for_backward(shape_1, mask_1, sparse_1, shape_2, mask_2, sparse_2)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input1 = grad_input2 = None    
+        shape_1, mask_1, sparse_1, shape_2, mask_2, sparse_2 = ctx.saved_tensors
+        input1 = rl.shiftedReluUnsparsify(shape_1, mask_1, sparse_1)
+        input2 = rl.shiftedReluUnsparsify(shape_2, mask_2, sparse_2)
+        if ctx.needs_input_grad[0]:
+            grad_input1 = grad_output.matmul(input2.to(dtype=grad_output.dtype))
+        if ctx.needs_input_grad[1]:
+            grad_input2 = input1.transpose(-2, -1).to(dtype=grad_output.dtype).matmul(grad_output)
+        del grad_output, input1, input2, shape_1, mask_1, sparse_1, shape_2, mask_2, sparse_2
+        return grad_input1, grad_input2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None
+
 class OurLayerNorm(nn.LayerNorm):
     def __init__(self, normalized_shape, eps=1e-05, elementwise_affine=True, keep_frac=0.5, sparse_mode='norm'):
         super(OurLayerNorm, self).__init__(normalized_shape, eps=eps, elementwise_affine=elementwise_affine)
@@ -142,6 +181,7 @@ class OurLayerNorm(nn.LayerNorm):
         # print('Our sparse norm')
         y = sparse_layer_norm.apply(x, self.normalized_shape, self.weight, self.bias, self.eps, self.keep_frac, self.sparse_mode)
         return y
+
 
 class sparse_layer_norm(torch.autograd.Function):
     @staticmethod
@@ -176,6 +216,7 @@ class sparse_layer_norm(torch.autograd.Function):
         ctx.layer_norm_parameters = None
         del sparse_input, ori_input, input_mean, inputivar, input, grad_output, inputmu, D, total_dim, weight
         return grad_input, None, grad_weight, grad_bias, None, None, None, None, None, None, None, None, None, None, None
+
 
 def layernorm_backward(dout, cache, output_mask):
     dx, dgamma, dbeta = None, None, None
@@ -233,6 +274,7 @@ class softmax_matmul(torch.autograd.Function):
         if ctx.needs_input_grad[1]:
             grad_input_2 = sparse_x_1.transpose(-2, -1).to(dtype=grad_output.dtype).matmul(grad_output)
         return grad_input_1, grad_input_2, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None
+
 
 def softmax(features, dim=-1):
     exps = torch.exp(features)

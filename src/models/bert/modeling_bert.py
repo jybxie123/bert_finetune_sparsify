@@ -338,10 +338,8 @@ class BertSelfAttention(nn.Module):
             self.query = cl.OurLinearWithShiftedRelu(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
             self.key = cl.OurLinearWithShiftedRelu(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
             self.value = cl.OurLinearWithShiftedRelu(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+2, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            # self.mm1 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            # self.mm2 = cl.OurMatMul(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
-            self.mm1 = torch.matmul
-            self.mm2 = torch.matmul
+            self.mm1 = cl.OurMatMulWithShiftedRelu(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+3, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
+            self.mm2 = cl.OurMatMulWithShiftedRelu(keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+4, act_type=config.hidden_act, sparse_mode=config.sparse_mode)
         elif config.sparse_mode == 'bkrz': # 暂时其他的norm、softmax都没实现backrazor的写法.
             self.query = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM, act_type=config.hidden_act)
             self.key = br.BackRazorLinear(config.hidden_size, self.all_head_size, keep_frac=config.keep_frac, linear_idx=layer_idx*LOOP_LAYER_NUM+1, act_type=config.hidden_act)
